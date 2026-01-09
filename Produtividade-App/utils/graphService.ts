@@ -53,13 +53,11 @@ export class GraphService {
         console.log("Iniciando resolução de sites...");
         for (const [key, config] of Object.entries(SITE_PATHS)) {
             try {
-                // Tenta resolver pelo path absoluto
                 const site = await this.client.api(`/sites/${config.host}:${config.path}`).get();
                 this.siteIds[key] = site.id;
                 console.log(`Site ${key} ok: ${site.id}`);
             } catch (error: any) {
                 console.warn(`Erro ao resolver site ${key}:`, error.message);
-                // Se falhar o personal, o app ainda pode funcionar para o Admin
                 if (key === 'POWERAPPS') throw error;
             }
         }
@@ -126,5 +124,12 @@ export class GraphService {
         return await this.client
             .api(`/sites/${siteId}/lists/${listConfig.id}/items/${itemId}/fields`)
             .patch(fields);
+    }
+
+    async deleteItem(listConfig: { id: string, siteRef: string }, itemId: string) {
+        const siteId = this.siteIds[listConfig.siteRef];
+        return await this.client
+            .api(`/sites/${siteId}/lists/${listConfig.id}/items/${itemId}`)
+            .delete();
     }
 }

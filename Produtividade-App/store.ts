@@ -83,7 +83,6 @@ export const useAppState = () => {
   }, [connectToSharePoint]);
 
   const loginLocal = (login: string, pass: string): boolean => {
-      // Usuário Mestre
       if (login === 'Matheus' && pass === 'admin321123') {
           const masterUser: Usuario = {
               id: 'master',
@@ -96,7 +95,6 @@ export const useAppState = () => {
           return true;
       }
 
-      // Busca na lista do SharePoint
       const found = state.usuarios.find(u => 
         u.LoginUsuario?.toLowerCase() === login.toLowerCase() && 
         u.SenhaUsuario === pass
@@ -107,6 +105,50 @@ export const useAppState = () => {
           return true;
       }
       return false;
+  };
+
+  const deletePlanta = async (id: string) => {
+    if (!graph) return;
+    try {
+        await graph.deleteItem(LISTS.PLANTAS, id);
+        setState(prev => ({ ...prev, plantas: prev.plantas.filter(p => p.id !== id) }));
+    } catch (error) {
+        console.error("Erro ao excluir planta:", error);
+        alert("Falha ao excluir planta no SharePoint.");
+    }
+  };
+
+  const deleteCaminhao = async (id: string) => {
+    if (!graph) return;
+    try {
+        await graph.deleteItem(LISTS.CAMINHOES, id);
+        setState(prev => ({ ...prev, caminhoes: prev.caminhoes.filter(c => c.id !== id) }));
+    } catch (error) {
+        console.error("Erro ao excluir caminhão:", error);
+        alert("Falha ao excluir caminhão no SharePoint.");
+    }
+  };
+
+  const deleteMotorista = async (id: string) => {
+    if (!graph) return;
+    try {
+        await graph.deleteItem(LISTS.MOTORISTAS, id);
+        setState(prev => ({ ...prev, motoristas: prev.motoristas.filter(m => m.id !== id) }));
+    } catch (error) {
+        console.error("Erro ao excluir motorista:", error);
+        alert("Falha ao excluir motorista no SharePoint.");
+    }
+  };
+
+  const deleteUsuario = async (id: string) => {
+    if (!graph) return;
+    try {
+        await graph.deleteItem(LISTS.USUARIOS, id);
+        setState(prev => ({ ...prev, usuarios: prev.usuarios.filter(u => u.id !== id) }));
+    } catch (error) {
+        console.error("Erro ao excluir usuário:", error);
+        alert("Falha ao excluir usuário no SharePoint.");
+    }
   };
 
   const addCarga = async (payload: any) => {
@@ -177,5 +219,5 @@ export const useAppState = () => {
       setGraph(null);
   };
 
-  return { state, loading, isAuthenticated, loginLocal, connectToSharePoint, addCarga, updateCarga, setCurrentUser, logout };
+  return { state, loading, isAuthenticated, loginLocal, connectToSharePoint, addCarga, updateCarga, deletePlanta, deleteCaminhao, deleteUsuario, deleteMotorista, setCurrentUser, logout };
 };

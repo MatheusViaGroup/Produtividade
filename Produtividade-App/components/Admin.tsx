@@ -12,7 +12,6 @@ const inputClass = "w-full border border-blue-100 rounded-xl px-4 py-2.5 bg-whit
 const labelClass = "block text-[10px] font-black text-blue-800/50 uppercase tracking-widest mb-1.5";
 const cardClass = "bg-white p-6 rounded-3xl border border-blue-50 shadow-sm sticky top-24";
 
-// Formulários sempre visíveis
 const FormLayout: React.FC<{ title: string; children: React.ReactNode; onSubmit: (e: React.FormEvent) => void }> = ({ title, children, onSubmit }) => (
   <div className={cardClass}>
     <h4 className="font-black text-blue-900 uppercase text-xs mb-6 flex items-center gap-2">
@@ -27,25 +26,25 @@ const FormLayout: React.FC<{ title: string; children: React.ReactNode; onSubmit:
   </div>
 );
 
-const PlantasTab = ({ state, searchTerm }: any) => {
+const PlantasTab = ({ state, searchTerm, actions }: any) => {
   const [nome, setNome] = useState('');
   const [id, setId] = useState('');
   const items = (state.plantas || []).filter((p: Planta) => p['NomedaUnidade']?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <FormLayout title="Planta" onSubmit={(e) => { e.preventDefault(); /* actions.addPlanta({ NomedaUnidade: nome, PlantaId: id }); */ setNome(''); setId(''); }}>
+      <FormLayout title="Planta" onSubmit={(e) => { e.preventDefault(); setNome(''); setId(''); }}>
         <div><label className={labelClass}>Nome da Unidade</label><input required type="text" value={nome} onChange={e => setNome(e.target.value)} className={inputClass} /></div>
         <div><label className={labelClass}>Planta ID (GUID)</label><input required type="text" value={id} onChange={e => setId(e.target.value)} className={inputClass} /></div>
       </FormLayout>
       <div className="lg:col-span-2"><ListTable headers={['Unidade', 'ID']} items={items} renderRow={(p: Planta) => (
-        <tr key={p.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</td><td className="px-6 py-4 text-xs font-mono text-gray-400">{p['PlantaId']}</td><td className="px-6 py-4 text-right"><button className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+        <tr key={p.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</td><td className="px-6 py-4 text-xs font-mono text-gray-400">{p['PlantaId']}</td><td className="px-6 py-4 text-right"><button onClick={() => { if(window.confirm('Deseja realmente excluir esta planta?')) actions.deletePlanta(p.id) }} className="text-blue-200 hover:text-red-500 p-2 transition-colors"><Trash2 size={16} /></button></td></tr>
       )} /></div>
     </div>
   );
 };
 
-const CaminhoesTab = ({ state, searchTerm }: any) => {
+const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
   const [placa, setPlaca] = useState('');
   const [plantaId, setPlantaId] = useState('');
   const items = (state.caminhoes || []).filter((c: Caminhao) => c['Placa']?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -57,13 +56,13 @@ const CaminhoesTab = ({ state, searchTerm }: any) => {
         <div><label className={labelClass}>Planta</label><select value={plantaId} onChange={e => setPlantaId(e.target.value)} className={inputClass} required><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2"><ListTable headers={['Placa', 'Planta']} items={items} renderRow={(c: Caminhao) => (
-        <tr key={c.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{c['Placa']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===c.PlantaId)?.NomedaUnidade || c.PlantaId}</td><td className="px-6 py-4 text-right"><button className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+        <tr key={c.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{c['Placa']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===c.PlantaId)?.NomedaUnidade || c.PlantaId}</td><td className="px-6 py-4 text-right"><button onClick={() => { if(window.confirm('Excluir caminhão?')) actions.deleteCaminhao(c.id) }} className="text-blue-200 hover:text-red-500 p-2 transition-colors"><Trash2 size={16} /></button></td></tr>
       )} /></div>
     </div>
   );
 };
 
-const MotoristasTab = ({ state, searchTerm }: any) => {
+const MotoristasTab = ({ state, searchTerm, actions }: any) => {
   const [nome, setNome] = useState('');
   const [plantaId, setPlantaId] = useState('');
   const items = (state.motoristas || []).filter((m: Motorista) => m['NomedoMotorista']?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -75,13 +74,13 @@ const MotoristasTab = ({ state, searchTerm }: any) => {
         <div><label className={labelClass}>Planta</label><select value={plantaId} onChange={e => setPlantaId(e.target.value)} className={inputClass} required><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2"><ListTable headers={['Motorista', 'Planta']} items={items} renderRow={(m: Motorista) => (
-        <tr key={m.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===m.PlantaId)?.NomedaUnidade || m.PlantaId}</td><td className="px-6 py-4 text-right"><button className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+        <tr key={m.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===m.PlantaId)?.NomedaUnidade || m.PlantaId}</td><td className="px-6 py-4 text-right"><button onClick={() => { if(window.confirm('Excluir motorista?')) actions.deleteMotorista(m.id) }} className="text-blue-200 hover:text-red-500 p-2 transition-colors"><Trash2 size={16} /></button></td></tr>
       )} /></div>
     </div>
   );
 };
 
-const UsuariosTab = ({ state, searchTerm }: any) => {
+const UsuariosTab = ({ state, searchTerm, actions }: any) => {
   const [name, setName] = useState('');
   const [login, setLogin] = useState('');
   const [role, setRole] = useState<Role>('Operador');
@@ -99,7 +98,7 @@ const UsuariosTab = ({ state, searchTerm }: any) => {
         )}
       </FormLayout>
       <div className="lg:col-span-2"><ListTable headers={['Usuário', 'Nível']} items={items} renderRow={(u: Usuario) => (
-        <tr key={u.id}><td className="px-6 py-4"><div><div className="font-bold text-gray-800 text-sm">{u['NomeCompleto']}</div><div className="text-[9px] text-blue-600/50 font-black uppercase">{u['LoginUsuario']}</div></div></td><td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 rounded text-[9px] font-black uppercase text-blue-600">{u['NivelAcesso']}</span></td><td className="px-6 py-4 text-right"><button className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+        <tr key={u.id}><td className="px-6 py-4"><div><div className="font-bold text-gray-800 text-sm">{u['NomeCompleto']}</div><div className="text-[9px] text-blue-600/50 font-black uppercase">{u['LoginUsuario']}</div></div></td><td className="px-6 py-4"><span className="px-2 py-1 bg-blue-50 rounded text-[9px] font-black uppercase text-blue-600">{u['NivelAcesso']}</span></td><td className="px-6 py-4 text-right"><button onClick={() => { if(u.id !== 'master' && window.confirm('Excluir este acesso?')) actions.deleteUsuario(u.id) }} disabled={u.id === 'master'} className={`p-2 transition-colors ${u.id === 'master' ? 'text-gray-100 cursor-not-allowed' : 'text-blue-200 hover:text-red-500'}`}><Trash2 size={16} /></button></td></tr>
       )} /></div>
     </div>
   );
@@ -142,10 +141,10 @@ export const Admin: React.FC<AdminProps> = ({ state, actions }) => {
          <input type="text" placeholder={`Filtrar ${activeSubTab}...`} className="w-full pl-12 pr-6 py-4 border border-blue-50 rounded-2xl bg-blue-50/20 focus:bg-white outline-none font-bold text-gray-700 transition-all" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
       </div>
       
-      {activeSubTab === 'usuarios' && <UsuariosTab state={state} searchTerm={searchTerm} />}
-      {activeSubTab === 'plantas' && <PlantasTab state={state} searchTerm={searchTerm} />}
-      {activeSubTab === 'caminhoes' && <CaminhoesTab state={state} searchTerm={searchTerm} />}
-      {activeSubTab === 'motoristas' && <MotoristasTab state={state} searchTerm={searchTerm} />}
+      {activeSubTab === 'usuarios' && <UsuariosTab state={state} searchTerm={searchTerm} actions={actions} />}
+      {activeSubTab === 'plantas' && <PlantasTab state={state} searchTerm={searchTerm} actions={actions} />}
+      {activeSubTab === 'caminhoes' && <CaminhoesTab state={state} searchTerm={searchTerm} actions={actions} />}
+      {activeSubTab === 'motoristas' && <MotoristasTab state={state} searchTerm={searchTerm} actions={actions} />}
     </div>
   );
 };
