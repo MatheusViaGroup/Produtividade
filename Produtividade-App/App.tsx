@@ -84,9 +84,17 @@ const LoginApp: React.FC<{ onLogin: (u: string, p: string) => boolean, onBack: (
 const App: React.FC = () => {
   const { state, loading, isAuthenticated, loginLocal, connectToSharePoint, logout, setCurrentUser, ...actions } = useAppState();
   const [activeTab, setActiveTab] = useState<'CARGAS' | 'INDICADORES' | 'ADMIN'>('CARGAS');
+  const [adminSubTab, setAdminSubTab] = useState<'usuarios' | 'plantas' | 'caminhoes' | 'motoristas' | 'importar'>('usuarios');
+  const [importType, setImportType] = useState<'CARGAS' | 'CAMINHOES' | 'MOTORISTAS'>('CARGAS');
 
   const currentUser = state.currentUser;
   
+  const goToImport = (type: 'CARGAS' | 'CAMINHOES' | 'MOTORISTAS') => {
+    setImportType(type);
+    setAdminSubTab('importar');
+    setActiveTab('ADMIN');
+  };
+
   if (!isAuthenticated) return <LoginMicrosoft onConnect={connectToSharePoint} loading={loading} />;
   
   if (loading && !state.usuarios.length) {
@@ -117,7 +125,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased pb-20 lg:pb-0">
-      {/* Header - Hidden on small mobile to save space, visible on tablet+ */}
       <header className="bg-blue-900 text-white shadow-xl sticky top-0 z-40 lg:block hidden">
         <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -139,7 +146,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Top Header */}
       <div className="lg:hidden bg-blue-900 text-white p-4 sticky top-0 z-40 flex justify-between items-center shadow-lg">
           <img src={LOGO_URL} alt="Via Group" className="h-6 brightness-0 invert" />
           <div className="flex items-center gap-3">
@@ -149,12 +155,19 @@ const App: React.FC = () => {
       </div>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full animate-in fade-in duration-500">
-        {activeTab === 'CARGAS' && <Loads state={state} actions={actions} />}
+        {activeTab === 'CARGAS' && <Loads state={state} actions={actions} isAdmin={isAdmin} onImport={() => goToImport('CARGAS')} />}
         {activeTab === 'INDICADORES' && <Indicators state={state} />}
-        {activeTab === 'ADMIN' && isAdmin && <Admin state={state} actions={actions} />}
+        {activeTab === 'ADMIN' && isAdmin && (
+            <Admin 
+                state={state} 
+                actions={actions} 
+                activeSubTab={adminSubTab} 
+                setActiveSubTab={setAdminSubTab}
+                initialImportType={importType}
+            />
+        )}
       </main>
 
-      {/* Bottom Navigation - Mobile Only */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around px-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] h-20">
           <NavButton tab="CARGAS" icon={Truck} label="Cargas" />
           <NavButton tab="INDICADORES" icon={BarChart3} label="Dados" />
@@ -165,7 +178,6 @@ const App: React.FC = () => {
           </button>
       </nav>
 
-      {/* Desktop Footer */}
       <footer className="hidden lg:block py-6 border-t border-gray-100 bg-white">
           <div className="max-w-7xl mx-auto px-6 flex justify-between items-center text-[9px] font-black uppercase text-gray-300 tracking-widest">
               <span>Via Group &copy; 2025</span>

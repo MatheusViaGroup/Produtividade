@@ -107,6 +107,32 @@ export const useAppState = () => {
       return false;
   };
 
+  const addPlanta = async (payload: any) => {
+    if (!graph) return;
+    try {
+        const response = await graph.createItem(LISTS.PLANTAS, payload);
+        const newItem = { ...payload, id: response.id };
+        setState(prev => ({ ...prev, plantas: [...prev.plantas, newItem] }));
+        return newItem;
+    } catch (error) {
+        console.error("Erro ao criar planta:", error);
+        throw error;
+    }
+  };
+
+  const addUsuario = async (payload: any) => {
+    if (!graph) return;
+    try {
+        const response = await graph.createItem(LISTS.USUARIOS, payload);
+        const newItem = { ...payload, id: response.id };
+        setState(prev => ({ ...prev, usuarios: [...prev.usuarios, newItem] }));
+        return newItem;
+    } catch (error) {
+        console.error("Erro ao criar usuário:", error);
+        throw error;
+    }
+  };
+
   const deletePlanta = async (id: string) => {
     if (!graph) return;
     try {
@@ -247,5 +273,5 @@ export const useAppState = () => {
       setGraph(null);
   };
 
-  return { state, loading, isAuthenticated, loginLocal, connectToSharePoint, addCarga, addCaminhao, addMotorista, updateCarga, deletePlanta, deleteCaminhao, deleteUsuario, deleteMotorista, setCurrentUser, logout };
+  return { state, loading, isAuthenticated, loginLocal, connectToSharePoint, addPlanta, addUsuario, addCarga, addCaminhao, addMotorista, updateCarga, deletePlanta, deleteCaminhao, deleteUsuario, deleteMotorista, setCurrentUser, logout };
 };

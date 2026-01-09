@@ -2,15 +2,17 @@
 import React, { useState } from 'react';
 import { Caminhao, Motorista, LoadType, Carga, Planta } from '../types';
 import { calculateExpectedReturn, findPreviousLoadArrival } from '../utils/logic';
-import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge } from 'lucide-react';
+import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge, FileSpreadsheet } from 'lucide-react';
 import { format, differenceInMinutes } from 'date-fns';
 
 interface LoadsProps {
   state: any;
   actions: any;
+  isAdmin?: boolean;
+  onImport?: () => void;
 }
 
-export const Loads: React.FC<LoadsProps> = ({ state, actions }) => {
+export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isFinishing, setIsFinishing] = useState<string | null>(null);
   const [filter, setFilter] = useState<'ATIVAS' | 'HISTORICO'>('ATIVAS');
@@ -80,18 +82,23 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions }) => {
 
   return (
     <div className="space-y-6">
-      {/* Tab Switching & Action Button */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         <div className="flex bg-white p-1 rounded-2xl border border-blue-50 shadow-sm overflow-hidden">
           <button onClick={() => setFilter('ATIVAS')} className={`flex-1 sm:px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'ATIVAS' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>Ativas</button>
           <button onClick={() => setFilter('HISTORICO')} className={`flex-1 sm:px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'HISTORICO' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>Histórico</button>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-8 py-4 rounded-2xl hover:bg-blue-700 flex items-center justify-center font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-100 active:scale-95 transition-all">
-          <Plus size={18} className="mr-2" /> Nova Carga
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+            {isAdmin && (
+                <button onClick={onImport} className="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl hover:bg-emerald-100 flex items-center justify-center font-black uppercase text-[10px] tracking-widest transition-all">
+                    <FileSpreadsheet size={18} className="mr-2" /> Importar Cargas
+                </button>
+            )}
+            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-8 py-4 rounded-2xl hover:bg-blue-700 flex items-center justify-center font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-100 active:scale-95 transition-all">
+                <Plus size={18} className="mr-2" /> Nova Carga
+            </button>
+        </div>
       </div>
 
-      {/* Grid of Loads */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
         {visibleCargas.map((carga: Carga) => (
           <div key={carga['CargaId']} className="bg-white border border-blue-50 rounded-[2rem] overflow-hidden shadow-sm p-6 sm:p-7 space-y-5 hover:shadow-xl transition-all duration-300">
@@ -156,7 +163,6 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions }) => {
         )}
       </div>
 
-      {/* Modals - Mobile and Desktop Optimized */}
       {(isFinishing || isModalOpen) && (
         <div className="fixed inset-0 bg-blue-950/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 z-[60] overflow-y-auto">
           <div className="bg-white rounded-t-[2.5rem] sm:rounded-[3rem] w-full max-w-lg p-8 sm:p-10 shadow-2xl relative animate-in slide-in-from-bottom-20 duration-500">

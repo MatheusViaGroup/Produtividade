@@ -1,28 +1,35 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Planta, Caminhao, Usuario, Motorista, Role, LoadType } from '../types';
-import { Trash2, Search, PlusCircle, LayoutGrid, List, FileUp, CheckCircle, AlertCircle, Loader2, Truck, Box, UserPlus } from 'lucide-react';
+import { Trash2, Search, PlusCircle, LayoutGrid, List, FileUp, CheckCircle, AlertCircle, Loader2, Truck, Box, UserPlus, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { calculateExpectedReturn } from '../utils/logic';
 
 interface AdminProps {
   state: any;
   actions: any;
+  activeSubTab: 'plantas' | 'caminhoes' | 'usuarios' | 'motoristas' | 'importar';
+  setActiveSubTab: (tab: any) => void;
+  initialImportType: 'CARGAS' | 'CAMINHOES' | 'MOTORISTAS';
 }
 
 const inputClass = "w-full border border-blue-100 rounded-xl px-4 py-3 bg-white text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-sm shadow-sm";
 const labelClass = "block text-[10px] font-black text-blue-800/50 uppercase tracking-widest mb-1.5 ml-1";
 const cardClass = "bg-white p-6 rounded-3xl border border-blue-50 shadow-sm lg:sticky lg:top-24 mb-8 lg:mb-0";
 
-const FormLayout: React.FC<{ title: string; children: React.ReactNode; onSubmit: (e: React.FormEvent) => void }> = ({ title, children, onSubmit }) => (
+const FormLayout: React.FC<{ title: string; children: React.ReactNode; onSubmit: (e: React.FormEvent) => void; loading?: boolean }> = ({ title, children, onSubmit, loading }) => (
   <div className={cardClass}>
     <h4 className="font-black text-blue-900 uppercase text-xs mb-6 flex items-center gap-2">
       <PlusCircle size={16} /> Novo {title}
     </h4>
     <form className="space-y-4" onSubmit={onSubmit}>
       {children}
-      <button className="w-full bg-blue-600 text-white font-black uppercase text-[10px] py-4 rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95">
-        Salvar no SharePoint
+      <button 
+        disabled={loading}
+        className="w-full bg-blue-600 text-white font-black uppercase text-[10px] py-4 rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {loading && <Loader2 size={14} className="animate-spin" />}
+        {loading ? "Salvando..." : "Salvar no SharePoint"}
       </button>
     </form>
   </div>
@@ -53,12 +60,16 @@ const ListTable: React.FC<{ headers: string[], items: any[], renderRow: (item: a
   </div>
 );
 
-const ImportTab = ({ state, actions }: any) => {
-    const [importType, setImportType] = useState<'CARGAS' | 'CAMINHOES' | 'MOTORISTAS'>('CARGAS');
+const ImportTab = ({ state, actions, initialType }: any) => {
+    const [importType, setImportType] = useState<'CARGAS' | 'CAMINHOES' | 'MOTORISTAS'>(initialType || 'CARGAS');
     const [importing, setImporting] = useState(false);
     const [results, setResults] = useState<{msg: string, type: 'success' | 'error'}[]>([]);
     const [progress, setProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (initialType) setImportType(initialType);
+    }, [initialType]);
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -81,7 +92,6 @@ const ImportTab = ({ state, actions }: any) => {
                 const row: any = data[i];
                 try {
                     if (importType === 'CARGAS') {
-                        // Lógica de importação de Cargas
                         const placaStr = String(row['Placa'] || '').trim().toUpperCase();
                         const motoristaStr = String(row['Motoristas coleta'] || '').trim();
                         const plantaStr = String(row['Planta'] || '').trim();
@@ -120,7 +130,6 @@ const ImportTab = ({ state, actions }: any) => {
                         setResults(prev => [{msg: `Linha ${i+1}: Sucesso (${placaStr})`, type: 'success'}, ...prev]);
 
                     } else if (importType === 'CAMINHOES') {
-                        // Lógica de importação de Caminhões
                         const placaStr = String(row['Placa'] || '').trim().toUpperCase();
                         const plantaStr = String(row['Planta'] || '').trim();
 
@@ -138,7 +147,6 @@ const ImportTab = ({ state, actions }: any) => {
                         });
                         setResults(prev => [{msg: `Linha ${i+1}: Caminhão ${placaStr} cadastrado`, type: 'success'}, ...prev]);
                     } else if (importType === 'MOTORISTAS') {
-                        // Lógica de importação de Motoristas
                         const nomeStr = String(row['Motoristas coleta'] || '').trim();
                         const plantaStr = String(row['Planta'] || '').trim();
 
@@ -171,7 +179,6 @@ const ImportTab = ({ state, actions }: any) => {
     return (
         <div className="animate-in fade-in duration-300">
             <div className="max-w-2xl mx-auto">
-                {/* Seletor de Tipo de Importação */}
                 <div className="flex bg-blue-50/50 p-1 rounded-2xl mb-8 border border-blue-50 overflow-x-auto no-scrollbar">
                     <button onClick={() => setImportType('CARGAS')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${importType === 'CARGAS' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-800/40'}`}>
                         <Box size={14} /> Cargas
@@ -232,12 +239,26 @@ const ImportTab = ({ state, actions }: any) => {
 };
 
 const PlantasTab = ({ state, searchTerm, actions }: any) => {
+  const [nome, setNome] = useState('');
+  const [id, setId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+          await actions.addPlanta({ NomedaUnidade: nome, PlantaId: id });
+          setNome(''); setId('');
+      } catch (err) { alert("Erro ao salvar planta"); }
+      setLoading(false);
+  };
+
   const items = (state.plantas || []).filter((p: Planta) => p['NomedaUnidade']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-      <FormLayout title="Planta" onSubmit={(e) => e.preventDefault()}>
-        <div><label className={labelClass}>Unidade</label><input required type="text" className={inputClass} /></div>
-        <div><label className={labelClass}>ID GUID</label><input required type="text" className={inputClass} /></div>
+      <FormLayout title="Planta" onSubmit={handleSubmit} loading={loading}>
+        <div><label className={labelClass}>Unidade</label><input required type="text" className={inputClass} value={nome} onChange={e => setNome(e.target.value)} /></div>
+        <div><label className={labelClass}>ID GUID</label><input required type="text" className={inputClass} value={id} onChange={e => setId(e.target.value)} /></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Unidade', 'ID']} items={items} 
@@ -257,12 +278,26 @@ const PlantasTab = ({ state, searchTerm, actions }: any) => {
 };
 
 const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
+  const [placa, setPlaca] = useState('');
+  const [plantaId, setPlantaId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+          await actions.addCaminhao({ Placa: placa.toUpperCase(), PlantaId: plantaId });
+          setPlaca(''); setPlantaId('');
+      } catch (err) { alert("Erro ao salvar caminhão"); }
+      setLoading(false);
+  };
+
   const items = (state.caminhoes || []).filter((c: Caminhao) => c['Placa']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <FormLayout title="Caminhão" onSubmit={(e) => e.preventDefault()}>
-        <div><label className={labelClass}>Placa</label><input required type="text" className={inputClass} placeholder="ABC-1234" /></div>
-        <div><label className={labelClass}>Planta</label><select className={inputClass} required><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+      <FormLayout title="Caminhão" onSubmit={handleSubmit} loading={loading}>
+        <div><label className={labelClass}>Placa</label><input required type="text" className={inputClass} placeholder="ABC-1234" value={placa} onChange={e => setPlaca(e.target.value)} /></div>
+        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Placa', 'Planta']} items={items} 
@@ -282,12 +317,26 @@ const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
 };
 
 const MotoristasTab = ({ state, searchTerm, actions }: any) => {
+  const [nome, setNome] = useState('');
+  const [plantaId, setPlantaId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+          await actions.addMotorista({ NomedoMotorista: nome, PlantaId: plantaId });
+          setNome(''); setPlantaId('');
+      } catch (err) { alert("Erro ao salvar motorista"); }
+      setLoading(false);
+  };
+
   const items = (state.motoristas || []).filter((m: Motorista) => m['NomedoMotorista']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <FormLayout title="Motorista" onSubmit={(e) => e.preventDefault()}>
-        <div><label className={labelClass}>Nome</label><input required type="text" className={inputClass} /></div>
-        <div><label className={labelClass}>Planta</label><select className={inputClass} required><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+      <FormLayout title="Motorista" onSubmit={handleSubmit} loading={loading}>
+        <div><label className={labelClass}>Nome</label><input required type="text" className={inputClass} value={nome} onChange={e => setNome(e.target.value)} /></div>
+        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Motorista', 'Planta']} items={items} 
@@ -307,13 +356,36 @@ const MotoristasTab = ({ state, searchTerm, actions }: any) => {
 };
 
 const UsuariosTab = ({ state, searchTerm, actions }: any) => {
+  const [nome, setNome] = useState('');
+  const [login, setLogin] = useState('');
+  const [senha, setSenha] = useState('');
+  const [nivel, setNivel] = useState<Role>('Operador');
+  const [plantaId, setPlantaId] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      try {
+          await actions.addUsuario({ NomeCompleto: nome, LoginUsuario: login, SenhaUsuario: senha, NivelAcesso: nivel, PlantaId: plantaId });
+          setNome(''); setLogin(''); setSenha(''); setPlantaId('');
+      } catch (err) { alert("Erro ao salvar usuário"); }
+      setLoading(false);
+  };
+
   const items = (state.usuarios || []).filter((u: Usuario) => u['NomeCompleto']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <FormLayout title="Usuário" onSubmit={(e) => e.preventDefault()}>
-        <div><label className={labelClass}>Nome</label><input required type="text" className={inputClass} /></div>
-        <div><label className={labelClass}>Login</label><input required type="text" className={inputClass} /></div>
-        <div><label className={labelClass}>Nível</label><select className={inputClass}><option value="Operador">Operador</option><option value="Admin">Admin</option></select></div>
+      <FormLayout title="Usuário" onSubmit={handleSubmit} loading={loading}>
+        <div><label className={labelClass}>Nome Completo</label><input required type="text" className={inputClass} value={nome} onChange={e => setNome(e.target.value)} /></div>
+        <div className="grid grid-cols-2 gap-2">
+            <div><label className={labelClass}>Login</label><input required type="text" className={inputClass} value={login} onChange={e => setLogin(e.target.value)} /></div>
+            <div><label className={labelClass}>Senha</label><input required type="password" className={inputClass} value={senha} onChange={e => setSenha(e.target.value)} /></div>
+        </div>
+        <div><label className={labelClass}>Nível</label><select className={inputClass} value={nivel} onChange={e => setNivel(e.target.value as Role)}><option value="Operador">Operador</option><option value="Admin">Admin</option></select></div>
+        {nivel === 'Operador' && (
+            <div><label className={labelClass}>Planta Vinculada</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+        )}
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Usuário', 'Nível']} items={items} 
@@ -332,25 +404,44 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
   );
 };
 
-export const Admin: React.FC<AdminProps> = ({ state, actions }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'plantas' | 'caminhoes' | 'usuarios' | 'motoristas' | 'importar'>('usuarios');
+export const Admin: React.FC<AdminProps> = ({ state, actions, activeSubTab, setActiveSubTab, initialImportType }) => {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const openImport = (type: 'CARGAS' | 'CAMINHOES' | 'MOTORISTAS') => {
+      setActiveSubTab('importar');
+  };
 
   return (
     <div className="bg-transparent lg:bg-white lg:p-10 lg:rounded-3xl lg:shadow-sm lg:border lg:border-blue-50 min-h-[600px]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 lg:mb-10 px-1 lg:px-0">
          <h2 className="text-2xl sm:text-3xl font-black text-blue-950 uppercase italic tracking-tight">Gestão SP</h2>
          <div className="flex bg-white lg:bg-blue-50/50 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto no-scrollbar shadow-sm lg:shadow-none border border-blue-50 lg:border-none">
-            {['plantas', 'caminhoes', 'usuarios', 'motoristas', 'importar'].map((t: any) => (
+            {['usuarios', 'plantas', 'caminhoes', 'motoristas'].map((t: any) => (
                <button key={t} onClick={() => setActiveSubTab(t)} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeSubTab === t ? 'bg-blue-600 lg:bg-white text-white lg:text-blue-700 shadow-sm' : 'text-blue-800/40'}`}>{t}</button>
             ))}
+            <button onClick={() => setActiveSubTab('importar')} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap flex items-center gap-2 ${activeSubTab === 'importar' ? 'bg-emerald-600 text-white shadow-sm' : 'text-emerald-700 font-bold'}`}>
+               <FileSpreadsheet size={14} /> Importar
+            </button>
          </div>
       </div>
       
       {activeSubTab !== 'importar' && (
-          <div className="relative mb-8 px-1 lg:px-0 animate-in slide-in-from-top-4 duration-300">
-             <Search className="absolute left-5 lg:left-4 top-1/2 -translate-y-1/2 text-blue-300" size={18} />
-             <input type="text" placeholder={`Buscar ${activeSubTab}...`} className="w-full pl-12 pr-6 py-4 border border-blue-50 rounded-2xl bg-white lg:bg-blue-50/20 focus:bg-white outline-none font-bold text-gray-700 transition-all shadow-sm lg:shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 px-1 lg:px-0">
+              <div className="relative flex-1 animate-in slide-in-from-top-4 duration-300">
+                 <Search className="absolute left-5 lg:left-4 top-1/2 -translate-y-1/2 text-blue-300" size={18} />
+                 <input type="text" placeholder={`Buscar ${activeSubTab}...`} className="w-full pl-12 pr-6 py-4 border border-blue-50 rounded-2xl bg-white lg:bg-blue-50/20 focus:bg-white outline-none font-bold text-gray-700 transition-all shadow-sm lg:shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
+              
+              {activeSubTab === 'caminhoes' && (
+                  <button onClick={() => openImport('CAMINHOES')} className="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all shadow-sm border border-emerald-100">
+                      <FileSpreadsheet size={16} /> Importar Excel
+                  </button>
+              )}
+              {activeSubTab === 'motoristas' && (
+                  <button onClick={() => openImport('MOTORISTAS')} className="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-emerald-100 transition-all shadow-sm border border-emerald-100">
+                      <FileSpreadsheet size={16} /> Importar Excel
+                  </button>
+              )}
           </div>
       )}
       
@@ -359,7 +450,7 @@ export const Admin: React.FC<AdminProps> = ({ state, actions }) => {
         {activeSubTab === 'plantas' && <PlantasTab state={state} searchTerm={searchTerm} actions={actions} />}
         {activeSubTab === 'caminhoes' && <CaminhoesTab state={state} searchTerm={searchTerm} actions={actions} />}
         {activeSubTab === 'motoristas' && <MotoristasTab state={state} searchTerm={searchTerm} actions={actions} />}
-        {activeSubTab === 'importar' && <ImportTab state={state} actions={actions} />}
+        {activeSubTab === 'importar' && <ImportTab state={state} actions={actions} initialType={initialImportType} />}
       </div>
     </div>
   );
