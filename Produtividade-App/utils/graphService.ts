@@ -5,7 +5,7 @@ import { Client } from "@microsoft/microsoft-graph-client";
 const msalConfig = {
     auth: {
         clientId: "COLOQUE_SEU_CLIENT_ID_AQUI", 
-        authority: "https://login.microsoftonline.com/COLOQUE_SEU_TENANT_ID_AQUI",
+        authority: "https://login.microsoftonline.com/7d9754b3-dcdb-4efe-8bb7-c0e5587b86ed",
         redirectUri: window.location.origin
     }
 };
