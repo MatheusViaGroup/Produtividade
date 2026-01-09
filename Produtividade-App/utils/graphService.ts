@@ -4,7 +4,7 @@ import { Client } from "@microsoft/microsoft-graph-client";
 
 const msalConfig = {
     auth: {
-        clientId: "c176306d-f849-4cf4-bfca-22ff214cdaad", 
+        clientId: "3170544c-21a9-46db-97ab-c4da57a8e7bf", 
         authority: "https://login.microsoftonline.com/7d9754b3-dcdb-4efe-8bb7-c0e5587b86ed",
         redirectUri: window.location.origin
     }
