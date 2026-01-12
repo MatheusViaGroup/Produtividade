@@ -231,7 +231,7 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                     <div className="space-y-4">
                         <div>
                             <label className={`${labelClass} flex justify-between`}>
-                                Justificativa Gap (Se > 1h)
+                                {"Justificativa Gap (Se > 1h)"}
                                 {finishData.diff1 > 60 && <span className="text-red-500 font-black italic">OBRIGATÓRIO</span>}
                             </label>
                             <textarea 
@@ -244,7 +244,7 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                         </div>
                         <div>
                             <label className={`${labelClass} flex justify-between`}>
-                                Justificativa Atraso (Se > 30min)
+                                {"Justificativa Atraso (Se > 30min)"}
                                 {finishData.diff2 > 30 && <span className="text-orange-500 font-black italic">OBRIGATÓRIO</span>}
                             </label>
                             <textarea 
