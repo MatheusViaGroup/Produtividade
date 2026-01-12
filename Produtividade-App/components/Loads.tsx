@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Caminhao, Motorista, LoadType, Carga, Planta } from '../types';
 import { calculateExpectedReturn, findPreviousLoadArrival } from '../utils/logic';
-import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge, FileSpreadsheet, AlertCircle, CheckCircle2, AlertTriangle, Clock, Info } from 'lucide-react';
+import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge, FileSpreadsheet, AlertCircle, CheckCircle2, AlertTriangle, Clock, Info, Navigation, History } from 'lucide-react';
 import { format, differenceInMinutes, isAfter } from 'date-fns';
 
 interface LoadsProps {
@@ -135,8 +135,12 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         <div className="flex bg-white p-1 rounded-2xl border border-blue-50 shadow-sm overflow-hidden">
-          <button onClick={() => setFilter('ATIVAS')} className={`flex-1 sm:px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'ATIVAS' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>Ativas</button>
-          <button onClick={() => setFilter('HISTORICO')} className={`flex-1 sm:px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'HISTORICO' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>Histórico</button>
+          <button onClick={() => setFilter('ATIVAS')} className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'ATIVAS' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>
+            <Navigation size={12} /> Ativas
+          </button>
+          <button onClick={() => setFilter('HISTORICO')} className={`flex items-center gap-2 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${filter === 'HISTORICO' ? 'bg-blue-600 text-white shadow-md' : 'text-blue-800/40'}`}>
+            <History size={12} /> Histórico
+          </button>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
             {isAdmin && (
@@ -155,27 +159,28 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
           const hasDivergence = (carga.Diff1_Gap || 0) > 60 || (carga['Diff2.Atraso'] || 0) > 30;
           const isLate = carga.StatusCarga === 'ATIVA' && isAfter(now, carga.VoltaPrevista);
           const isHistory = filter === 'HISTORICO';
+          const totalRouteMinutes = carga.ChegadaReal ? differenceInMinutes(carga.ChegadaReal, carga.DataInicio) : 0;
           
           return (
-            <div key={carga['CargaId']} className={`bg-white border rounded-[2rem] overflow-hidden shadow-sm p-6 sm:p-7 space-y-5 hover:shadow-xl transition-all duration-300 relative ${isLate ? 'border-orange-200 bg-orange-50/10' : isHistory ? (hasDivergence ? 'border-red-200 bg-red-50/5' : 'border-blue-50 bg-blue-50/5') : 'border-blue-50'}`}>
+            <div key={carga['CargaId']} className={`bg-white border rounded-[2rem] overflow-hidden shadow-sm p-6 sm:p-7 space-y-5 hover:shadow-xl transition-all duration-300 relative ${isLate ? 'border-orange-200 bg-orange-50/10' : isHistory ? (hasDivergence ? 'border-red-200 bg-red-50/5' : 'border-emerald-100 bg-emerald-50/5') : 'border-blue-50'}`}>
                
                {/* Barra lateral de status no histórico */}
                {isHistory && (
-                   <div className={`absolute left-0 top-0 bottom-0 w-2 ${hasDivergence ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                   <div className={`absolute left-0 top-0 bottom-0 w-2 ${hasDivergence ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
                )}
 
                <div className="flex justify-between items-start">
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1.5">
                     <div className="bg-blue-50 text-blue-700 text-[9px] font-black tracking-widest px-3 py-1.5 rounded-full uppercase leading-none w-fit">
                         {carga['TipoCarga']}
                     </div>
                     {isHistory ? (
-                        <div className={`flex items-center gap-1 text-[8px] font-black uppercase px-2 py-1 rounded-full ${hasDivergence ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                        <div className={`flex items-center gap-1.5 text-[8px] font-black uppercase px-3 py-1.5 rounded-full ${hasDivergence ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
                             {hasDivergence ? <AlertTriangle size={10} /> : <CheckCircle2 size={10} />}
-                            {hasDivergence ? 'Com Pendência' : 'Concluída'}
+                            {hasDivergence ? 'Com Pendência' : 'Concluída OK'}
                         </div>
                     ) : isLate && (
-                        <div className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-1 rounded-full bg-orange-100 text-orange-700">
+                        <div className="flex items-center gap-1.5 text-[8px] font-black uppercase px-3 py-1.5 rounded-full bg-orange-100 text-orange-700">
                             <Clock size={10} /> Em Atraso
                         </div>
                     )}
@@ -206,9 +211,22 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                   </div>
                </div>
 
+               {isHistory && (
+                   <div className="grid grid-cols-2 gap-2">
+                       <div className="p-3 bg-blue-50 rounded-2xl border border-blue-100">
+                           <p className="text-[8px] font-black text-blue-600 uppercase mb-1">Tempo em Rota</p>
+                           <p className="text-xs font-black text-blue-900">{Math.floor(totalRouteMinutes / 60)}h {totalRouteMinutes % 60}m</p>
+                       </div>
+                       <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100">
+                           <p className="text-[8px] font-black text-indigo-600 uppercase mb-1">Km Real</p>
+                           <p className="text-xs font-black text-indigo-900">{carga.KmReal || 0} km</p>
+                       </div>
+                   </div>
+               )}
+
                {isHistory && hasDivergence && (
                    <div className="p-3 bg-red-50 rounded-2xl border border-red-100 space-y-1">
-                       <p className="text-[8px] font-black text-red-600 uppercase flex items-center gap-1"><Info size={8} /> Pendências Registradas:</p>
+                       <p className="text-[8px] font-black text-red-600 uppercase flex items-center gap-1"><Info size={8} /> Justificativas pendentes:</p>
                        <div className="flex flex-wrap gap-2">
                            {carga.Diff1_Gap && carga.Diff1_Gap > 60 && <span className="text-[7px] font-black bg-red-200 text-red-800 px-1.5 py-0.5 rounded uppercase">Gap: {carga.Diff1_Gap}m</span>}
                            {carga['Diff2.Atraso'] && carga['Diff2.Atraso'] > 30 && <span className="text-[7px] font-black bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded uppercase">Atraso: {carga['Diff2.Atraso']}m</span>}
@@ -244,8 +262,8 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
           );
         })}
         {visibleCargas.length === 0 && (
-            <div className="md:col-span-2 xl:col-span-3 py-20 text-center">
-                <p className="text-gray-300 font-black uppercase text-xs tracking-widest">Nenhuma carga encontrada para este filtro.</p>
+            <div className="md:col-span-2 xl:col-span-3 py-20 text-center bg-white/50 rounded-[2rem] border border-dashed border-gray-200">
+                <p className="text-gray-300 font-black uppercase text-xs tracking-widest">Nenhuma carga encontrada no {filter === 'ATIVAS' ? 'Painel Ativo' : 'Histórico'}.</p>
             </div>
         )}
       </div>
