@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Caminhao, Motorista, LoadType, Carga, Planta } from '../types';
 import { calculateExpectedReturn, findPreviousLoadArrival } from '../utils/logic';
-import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge, FileSpreadsheet, AlertCircle, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { Plus, Truck, User, ArrowRight, X, Calendar, MapPin, Gauge, FileSpreadsheet, AlertCircle, CheckCircle2, AlertTriangle, Clock, Info } from 'lucide-react';
 import { format, differenceInMinutes, isAfter } from 'date-fns';
 
 interface LoadsProps {
@@ -140,7 +140,7 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
             {isAdmin && (
-                <button onClick={onImport} className="bg-emerald-50 text-emerald-700 px-6 py-4 rounded-2xl hover:bg-emerald-100 flex items-center justify-center font-black uppercase text-[10px] tracking-widest transition-all">
+                <button onClick={onImport} className="bg-blue-50 text-blue-700 px-6 py-4 rounded-2xl hover:bg-blue-100 flex items-center justify-center font-black uppercase text-[10px] tracking-widest transition-all">
                     <FileSpreadsheet size={18} className="mr-2" /> Importar Cargas
                 </button>
             )}
@@ -154,18 +154,25 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
         {visibleCargas.map((carga: Carga) => {
           const hasDivergence = (carga.Diff1_Gap || 0) > 60 || (carga['Diff2.Atraso'] || 0) > 30;
           const isLate = carga.StatusCarga === 'ATIVA' && isAfter(now, carga.VoltaPrevista);
+          const isHistory = filter === 'HISTORICO';
           
           return (
-            <div key={carga['CargaId']} className={`bg-white border rounded-[2rem] overflow-hidden shadow-sm p-6 sm:p-7 space-y-5 hover:shadow-xl transition-all duration-300 ${isLate ? 'border-orange-200 bg-orange-50/10' : 'border-blue-50'}`}>
+            <div key={carga['CargaId']} className={`bg-white border rounded-[2rem] overflow-hidden shadow-sm p-6 sm:p-7 space-y-5 hover:shadow-xl transition-all duration-300 relative ${isLate ? 'border-orange-200 bg-orange-50/10' : isHistory ? (hasDivergence ? 'border-red-200 bg-red-50/5' : 'border-blue-50 bg-blue-50/5') : 'border-blue-50'}`}>
+               
+               {/* Barra lateral de status no histórico */}
+               {isHistory && (
+                   <div className={`absolute left-0 top-0 bottom-0 w-2 ${hasDivergence ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+               )}
+
                <div className="flex justify-between items-start">
                   <div className="flex flex-col gap-1">
                     <div className="bg-blue-50 text-blue-700 text-[9px] font-black tracking-widest px-3 py-1.5 rounded-full uppercase leading-none w-fit">
                         {carga['TipoCarga']}
                     </div>
-                    {filter === 'HISTORICO' ? (
-                        <div className={`flex items-center gap-1 text-[8px] font-black uppercase px-2 py-1 rounded-full ${hasDivergence ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                    {isHistory ? (
+                        <div className={`flex items-center gap-1 text-[8px] font-black uppercase px-2 py-1 rounded-full ${hasDivergence ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                             {hasDivergence ? <AlertTriangle size={10} /> : <CheckCircle2 size={10} />}
-                            {hasDivergence ? 'Com Divergência' : 'Concluída'}
+                            {hasDivergence ? 'Com Pendência' : 'Concluída'}
                         </div>
                     ) : isLate && (
                         <div className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-1 rounded-full bg-orange-100 text-orange-700">
@@ -174,8 +181,8 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                     )}
                   </div>
                   <div className="text-right">
-                      <p className="text-[9px] font-black text-blue-800/30 uppercase leading-none">Criada em</p>
-                      <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase">{format(carga['DataCriacao'], 'dd/MM HH:mm')}</p>
+                      <p className="text-[9px] font-black text-blue-800/30 uppercase leading-none">{isHistory ? 'Finalizada em' : 'Criada em'}</p>
+                      <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase">{isHistory && carga.ChegadaReal ? format(carga.ChegadaReal, 'dd/MM HH:mm') : format(carga.DataCriacao, 'dd/MM HH:mm')}</p>
                   </div>
                </div>
 
@@ -198,6 +205,16 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                       <p className="text-xs font-bold text-gray-700 truncate">{state.motoristas.find((m: any) => m['MotoristaId'] === carga['MotoristaId'])?.['NomedoMotorista'] || 'Motorista'}</p>
                   </div>
                </div>
+
+               {isHistory && hasDivergence && (
+                   <div className="p-3 bg-red-50 rounded-2xl border border-red-100 space-y-1">
+                       <p className="text-[8px] font-black text-red-600 uppercase flex items-center gap-1"><Info size={8} /> Pendências Registradas:</p>
+                       <div className="flex flex-wrap gap-2">
+                           {carga.Diff1_Gap && carga.Diff1_Gap > 60 && <span className="text-[7px] font-black bg-red-200 text-red-800 px-1.5 py-0.5 rounded uppercase">Gap: {carga.Diff1_Gap}m</span>}
+                           {carga['Diff2.Atraso'] && carga['Diff2.Atraso'] > 30 && <span className="text-[7px] font-black bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded uppercase">Atraso: {carga['Diff2.Atraso']}m</span>}
+                       </div>
+                   </div>
+               )}
 
                <div className="pt-2 grid grid-cols-2 gap-4">
                   <div className="bg-blue-50/30 p-4 rounded-2xl">
