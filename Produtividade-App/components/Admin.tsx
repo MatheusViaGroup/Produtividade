@@ -386,7 +386,16 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
         </div>
         <div><label className={labelClass}>Nível</label><select className={inputClass} value={nivel} onChange={e => setNivel(e.target.value as Role)}><option value="Operador">Operador</option><option value="Admin">Admin</option></select></div>
         {nivel === 'Operador' && (
-            <div><label className={labelClass}>Planta Vinculada</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+            <div>
+              <label className={labelClass}>Planta Vinculada</label>
+              <select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}>
+                <option value="">Selecione...</option>
+                {state.plantas.map((p: Planta) => (
+                  /* Alterado de p.PlantaId (GUID) para p.id (ID numérico) para satisfazer Lookup do SharePoint */
+                  <option key={p.id} value={p.id}>{p['NomedaUnidade']}</option>
+                ))}
+              </select>
+            </div>
         )}
       </FormLayout>
       <div className="lg:col-span-2">
