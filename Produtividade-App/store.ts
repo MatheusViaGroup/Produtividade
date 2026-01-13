@@ -126,27 +126,35 @@ export const useAppState = () => {
         const newItem = { ...fields, id: response.id };
         setState(prev => ({ ...prev, plantas: [...prev.plantas, newItem] }));
         return newItem;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao criar planta:", error);
-        throw error;
+        throw new Error(error.response?.data?.error?.message || error.message);
     }
   };
 
   const addUsuario = async (payload: any) => {
     if (!graph) return;
     try {
-        const cleanPayload = { ...payload };
-        if (cleanPayload.NivelAcesso === 'Admin' && !cleanPayload.PlantaId) {
-            delete cleanPayload.PlantaId;
+        const fields: any = {
+            Title: payload.NomeCompleto,
+            NomeCompleto: payload.NomeCompleto,
+            LoginUsuario: payload.LoginUsuario,
+            SenhaUsuario: payload.SenhaUsuario,
+            NivelAcesso: payload.NivelAcesso
+        };
+
+        if (payload.PlantaId && payload.NivelAcesso === 'Operador') {
+            fields.PlantaId = payload.PlantaId;
         }
-        const fields = { ...cleanPayload, Title: payload.NomeCompleto };
+
         const response = await graph.createItem(LISTS.USUARIOS, fields);
         const newItem = { ...fields, id: response.id };
         setState(prev => ({ ...prev, usuarios: [...prev.usuarios, newItem] }));
         return newItem;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao criar usuário:", error);
-        throw error;
+        const errorDetail = error.response?.data?.error?.message || error.message || "Erro desconhecido";
+        throw new Error(`Falha no SharePoint: ${errorDetail}`);
     }
   };
 
@@ -228,9 +236,9 @@ export const useAppState = () => {
         };
         setState(prev => ({ ...prev, cargas: [newItem, ...prev.cargas] }));
         return newItem;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao criar carga:", error);
-        throw error;
+        throw new Error(error.response?.data?.error?.message || error.message);
     }
   };
 
@@ -242,9 +250,9 @@ export const useAppState = () => {
         const newItem = { ...fields, id: response.id, CaminhaoId: response.id };
         setState(prev => ({ ...prev, caminhoes: [...prev.caminhoes, newItem] }));
         return newItem;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao criar caminhão:", error);
-        throw error;
+        throw new Error(error.response?.data?.error?.message || error.message);
     }
   };
 
@@ -256,9 +264,9 @@ export const useAppState = () => {
         const newItem = { ...fields, id: response.id, MotoristaId: response.id };
         setState(prev => ({ ...prev, motoristas: [...prev.motoristas, newItem] }));
         return newItem;
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao criar motorista:", error);
-        throw error;
+        throw new Error(error.response?.data?.error?.message || error.message);
     }
   };
 
@@ -292,9 +300,9 @@ export const useAppState = () => {
             ...prev,
             cargas: prev.cargas.map(c => c.CargaId === updated.CargaId ? { ...updated } : c)
         }));
-    } catch (error) {
+    } catch (error: any) {
         console.error("Erro ao atualizar carga:", error);
-        alert("Erro ao salvar alterações no SharePoint.");
+        alert(`Erro ao salvar no SharePoint: ${error.response?.data?.error?.message || error.message}`);
     }
   };
 

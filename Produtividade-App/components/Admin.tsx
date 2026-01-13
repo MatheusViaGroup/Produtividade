@@ -249,7 +249,7 @@ const PlantasTab = ({ state, searchTerm, actions }: any) => {
       try {
           await actions.addPlanta({ NomedaUnidade: nome, PlantaId: id });
           setNome(''); setId('');
-      } catch (err) { alert("Erro ao salvar planta"); }
+      } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
 
@@ -288,7 +288,7 @@ const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
       try {
           await actions.addCaminhao({ Placa: placa.toUpperCase(), PlantaId: plantaId });
           setPlaca(''); setPlantaId('');
-      } catch (err) { alert("Erro ao salvar caminhão"); }
+      } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
 
@@ -327,7 +327,7 @@ const MotoristasTab = ({ state, searchTerm, actions }: any) => {
       try {
           await actions.addMotorista({ NomedoMotorista: nome, PlantaId: plantaId });
           setNome(''); setPlantaId('');
-      } catch (err) { alert("Erro ao salvar motorista"); }
+      } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
 
@@ -369,7 +369,9 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
       try {
           await actions.addUsuario({ NomeCompleto: nome, LoginUsuario: login, SenhaUsuario: senha, NivelAcesso: nivel, PlantaId: plantaId });
           setNome(''); setLogin(''); setSenha(''); setPlantaId('');
-      } catch (err) { alert("Erro ao salvar usuário"); }
+      } catch (err: any) { 
+          alert(`Erro ao salvar usuário: ${err.message}`); 
+      }
       setLoading(false);
   };
 
