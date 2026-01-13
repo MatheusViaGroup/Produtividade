@@ -17,16 +17,9 @@ const inputClass = "w-full border border-blue-100 rounded-xl px-4 py-3 bg-white 
 const labelClass = "block text-[10px] font-black text-blue-800/50 uppercase tracking-widest mb-1.5 ml-1";
 const cardClass = "bg-white p-6 rounded-3xl border border-blue-50 shadow-sm lg:sticky lg:top-24 mb-8 lg:mb-0";
 
-// Função auxiliar para processar datas de forma robusta
 const parseExcelDate = (val: any): Date => {
     if (!val) return new Date();
-    
-    // Se for número (serial do Excel)
-    if (typeof val === 'number') {
-        return new Date(Date.UTC(0, 0, val - 25569));
-    }
-    
-    // Se for string, tentamos tratar o formato brasileiro DD/MM/YYYY
+    if (typeof val === 'number') return new Date(Date.UTC(0, 0, val - 25569));
     const str = String(val).trim();
     if (str.includes('/')) {
         const parts = str.split(' ');
@@ -35,19 +28,16 @@ const parseExcelDate = (val: any): Date => {
             const day = parseInt(dateParts[0], 10);
             const month = parseInt(dateParts[1], 10) - 1;
             const year = parseInt(dateParts[2], 10);
-            
             let hours = 0, minutes = 0;
             if (parts[1]) {
                 const timeParts = parts[1].split(':');
                 hours = parseInt(timeParts[0], 10) || 0;
                 minutes = parseInt(timeParts[1], 10) || 0;
             }
-            
             const d = new Date(year, month, day, hours, minutes);
             if (!isNaN(d.getTime())) return d;
         }
     }
-    
     const parsed = new Date(val);
     return isNaN(parsed.getTime()) ? new Date() : parsed;
 };
@@ -109,45 +99,37 @@ const ImportTab = ({ state, actions, initialType }: any) => {
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
         setImporting(true);
         setResults([]);
         setProgress(0);
-
         const reader = new FileReader();
         reader.onload = async (evt) => {
             const bstr = evt.target?.result;
             const wb = XLSX.read(bstr, { type: 'binary' });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
+            const ws = wb.Sheets[wb.SheetNames[0]];
             const data = XLSX.utils.sheet_to_json(ws);
-
             const total = data.length;
             for (let i = 0; i < total; i++) {
                 const row: any = data[i];
                 try {
+                    const plantaStr = String(row['Planta'] || '').trim();
+                    const planta = state.plantas.find((p: Planta) => p['NomedaUnidade'].trim().toLowerCase() === plantaStr.toLowerCase());
+                    if (!planta) throw new Error(`Planta '${plantaStr}' não encontrada`);
+
                     if (importType === 'CARGAS') {
                         const placaStr = String(row['Placa'] || '').trim().toUpperCase();
                         const motoristaStr = String(row['Motoristas coleta'] || '').trim();
-                        const plantaStr = String(row['Planta'] || '').trim();
                         const eventoStr = String(row['Eventos'] || '').trim().toUpperCase();
                         const kmPrevisto = Number(row['KM previsto'] || 0);
-                        
                         const dataInicio = parseExcelDate(row['Início']);
-
-                        const planta = state.plantas.find((p: Planta) => p['NomedaUnidade'].trim().toLowerCase() === plantaStr.toLowerCase());
                         const caminhao = state.caminhoes.find((c: Caminhao) => c['Placa'].trim().toUpperCase() === placaStr);
                         const motorista = state.motoristas.find((m: Motorista) => m['NomedoMotorista'].trim().toLowerCase() === motoristaStr.toLowerCase());
-
-                        if (!planta) throw new Error(`Planta '${plantaStr}' não encontrada`);
                         if (!caminhao) throw new Error(`Caminhão placa '${placaStr}' não encontrado`);
                         if (!motorista) throw new Error(`Motorista '${motoristaStr}' não encontrado`);
-
                         const tipoCarga: LoadType = eventoStr.includes('COMBINADA') ? 'COMBINADA 2' : 'CHEIA';
                         const voltaPrevista = calculateExpectedReturn(dataInicio, kmPrevisto, tipoCarga);
-
                         await actions.addCarga({
-                            'PlantaId': planta['PlantaId'],
+                            'PlantaID': planta['PlantaID'],
                             'CaminhaoId': caminhao['CaminhaoId'],
                             'MotoristaId': motorista['MotoristaId'],
                             'TipoCarga': tipoCarga,
@@ -156,43 +138,21 @@ const ImportTab = ({ state, actions, initialType }: any) => {
                             'VoltaPrevista': voltaPrevista,
                         });
                         setResults(prev => [{msg: `Linha ${i+1}: Sucesso (${placaStr})`, type: 'success'}, ...prev]);
-
                     } else if (importType === 'CAMINHOES') {
                         const placaStr = String(row['Placa'] || '').trim().toUpperCase();
-                        const plantaStr = String(row['Planta'] || '').trim();
-
                         if (!placaStr) throw new Error("Placa ausente");
-
-                        const planta = state.plantas.find((p: Planta) => p['NomedaUnidade'].trim().toLowerCase() === plantaStr.toLowerCase());
-                        if (!planta) throw new Error(`Planta '${plantaStr}' não encontrada`);
-
                         const existing = state.caminhoes.find((c: Caminhao) => c['Placa'].trim().toUpperCase() === placaStr);
                         if (existing) throw new Error(`Caminhão placa '${placaStr}' já cadastrado`);
-
-                        await actions.addCaminhao({
-                            'Placa': placaStr,
-                            'PlantaId': planta['PlantaId']
-                        });
+                        await actions.addCaminhao({ 'Placa': placaStr, 'PlantaID': planta['PlantaID'] });
                         setResults(prev => [{msg: `Linha ${i+1}: Caminhão ${placaStr} cadastrado`, type: 'success'}, ...prev]);
                     } else if (importType === 'MOTORISTAS') {
                         const nomeStr = String(row['Motoristas coleta'] || '').trim();
-                        const plantaStr = String(row['Planta'] || '').trim();
-
                         if (!nomeStr) throw new Error("Nome do motorista ausente");
-
-                        const planta = state.plantas.find((p: Planta) => p['NomedaUnidade'].trim().toLowerCase() === plantaStr.toLowerCase());
-                        if (!planta) throw new Error(`Planta '${plantaStr}' não encontrada`);
-
                         const existing = state.motoristas.find((m: Motorista) => m['NomedoMotorista'].trim().toLowerCase() === nomeStr.toLowerCase());
                         if (existing) throw new Error(`Motorista '${nomeStr}' já cadastrado`);
-
-                        await actions.addMotorista({
-                            'NomedoMotorista': nomeStr,
-                            'PlantaId': planta['PlantaId']
-                        });
+                        await actions.addMotorista({ 'NomedoMotorista': nomeStr, 'PlantaID': planta['PlantaID'] });
                         setResults(prev => [{msg: `Linha ${i+1}: Motorista ${nomeStr} cadastrado`, type: 'success'}, ...prev]);
                     }
-
                 } catch (err: any) {
                     setResults(prev => [{msg: `Linha ${i+1}: Erro - ${err.message}`, type: 'error'}, ...prev]);
                 }
@@ -218,41 +178,22 @@ const ImportTab = ({ state, actions, initialType }: any) => {
                         <UserPlus size={14} /> Motoristas
                     </button>
                 </div>
-
                 <div className="bg-blue-50 border-2 border-dashed border-blue-200 rounded-[2.5rem] p-12 text-center relative group transition-all hover:bg-white hover:border-blue-400">
-                    <input 
-                        type="file" 
-                        ref={fileInputRef}
-                        accept=".xlsx, .xls, .csv" 
-                        onChange={handleFile}
-                        disabled={importing}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
+                    <input type="file" ref={fileInputRef} accept=".xlsx, .xls, .csv" onChange={handleFile} disabled={importing} className="absolute inset-0 opacity-0 cursor-pointer" />
                     <div className="flex flex-col items-center">
                         <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl transition-all ${importing ? 'bg-gray-100 text-gray-400 animate-pulse' : 'bg-blue-600 text-white group-hover:scale-110'}`}>
                             {importing ? <Loader2 className="animate-spin" size={32} /> : <FileUp size={32} />}
                         </div>
-                        <h3 className="text-xl font-black text-blue-950 uppercase italic mb-2">
-                            Importar {importType.toLowerCase()}
-                        </h3>
-                        <p className="text-xs font-bold text-blue-800/40 uppercase tracking-widest max-w-xs mx-auto">
-                            Arraste seu arquivo Excel para importar em lote para o SharePoint.
-                        </p>
+                        <h3 className="text-xl font-black text-blue-950 uppercase italic mb-2">Importar {importType.toLowerCase()}</h3>
+                        <p className="text-xs font-bold text-blue-800/40 uppercase tracking-widest max-w-xs mx-auto">Arraste seu arquivo Excel para o SharePoint.</p>
                     </div>
                 </div>
-
                 {importing && (
                     <div className="mt-8 space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase text-blue-600 px-2">
-                            <span>Sincronizando...</span>
-                            <span>{progress}%</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-600 transition-all duration-300" style={{width: `${progress}%`}}></div>
-                        </div>
+                        <div className="flex justify-between text-[10px] font-black uppercase text-blue-600 px-2"><span>Sincronizando...</span><span>{progress}%</span></div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-600 transition-all duration-300" style={{width: `${progress}%`}}></div></div>
                     </div>
                 )}
-
                 <div className="mt-10 space-y-3 max-h-[300px] overflow-y-auto no-scrollbar pb-8">
                     {results.map((res, idx) => (
                         <div key={idx} className={`flex items-center gap-3 p-4 rounded-2xl text-[10px] font-black uppercase tracking-wider border ${res.type === 'success' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
@@ -270,32 +211,27 @@ const PlantasTab = ({ state, searchTerm, actions }: any) => {
   const [nome, setNome] = useState('');
   const [id, setId] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
-      try {
-          await actions.addPlanta({ NomedaUnidade: nome, PlantaId: id });
-          setNome(''); setId('');
-      } catch (err: any) { alert(`Erro: ${err.message}`); }
+      try { await actions.addPlanta({ NomedaUnidade: nome, PlantaID: id }); setNome(''); setId(''); } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
-
   const items = (state.plantas || []).filter((p: Planta) => p['NomedaUnidade']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
       <FormLayout title="Planta" onSubmit={handleSubmit} loading={loading}>
         <div><label className={labelClass}>Unidade</label><input required type="text" className={inputClass} value={nome} onChange={e => setNome(e.target.value)} /></div>
-        <div><label className={labelClass}>ID GUID</label><input required type="text" className={inputClass} value={id} onChange={e => setId(e.target.value)} /></div>
+        <div><label className={labelClass}>ID GUID (PlantaID)</label><input required type="text" className={inputClass} value={id} onChange={e => setId(e.target.value)} /></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Unidade', 'ID']} items={items} 
           renderRow={(p: Planta) => (
-            <tr key={p.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</td><td className="px-6 py-4 text-xs font-mono text-gray-400">{p['PlantaId']}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deletePlanta(p.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+            <tr key={p.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</td><td className="px-6 py-4 text-xs font-mono text-gray-400">{p['PlantaID']}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deletePlanta(p.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
           )}
           renderCard={(p: Planta) => (
             <div key={p.id} className="bg-white p-5 rounded-2xl border border-blue-50 flex justify-between items-center shadow-sm">
-                <div><div className="font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</div><div className="text-[10px] text-gray-400 font-mono mt-1">{p['PlantaId']}</div></div>
+                <div><div className="font-bold text-gray-800 text-sm">{p['NomedaUnidade']}</div><div className="text-[10px] text-gray-400 font-mono mt-1">{p['PlantaID']}</div></div>
                 <button onClick={() => actions.deletePlanta(p.id)} className="p-3 bg-red-50 text-red-500 rounded-xl"><Trash2 size={16} /></button>
             </div>
           )}
@@ -307,34 +243,29 @@ const PlantasTab = ({ state, searchTerm, actions }: any) => {
 
 const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
   const [placa, setPlaca] = useState('');
-  const [plantaId, setPlantaId] = useState('');
+  const [plantaID, setPlantaID] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
-      try {
-          await actions.addCaminhao({ Placa: placa.toUpperCase(), PlantaId: plantaId });
-          setPlaca(''); setPlantaId('');
-      } catch (err: any) { alert(`Erro: ${err.message}`); }
+      try { await actions.addCaminhao({ Placa: placa.toUpperCase(), PlantaID: plantaID }); setPlaca(''); setPlantaID(''); } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
-
   const items = (state.caminhoes || []).filter((c: Caminhao) => c['Placa']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
       <FormLayout title="Caminhão" onSubmit={handleSubmit} loading={loading}>
         <div><label className={labelClass}>Placa</label><input required type="text" className={inputClass} placeholder="ABC-1234" value={placa} onChange={e => setPlaca(e.target.value)} /></div>
-        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaID} onChange={e => setPlantaID(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaID']} value={p['PlantaID']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Placa', 'Planta']} items={items} 
           renderRow={(c: Caminhao) => (
-            <tr key={c.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{c['Placa']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===c.PlantaId)?.NomedaUnidade}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deleteCaminhao(c.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+            <tr key={c.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{c['Placa']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>String(p.PlantaID)===String(c.PlantaID))?.NomedaUnidade}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deleteCaminhao(c.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
           )}
           renderCard={(c: Caminhao) => (
             <div key={c.id} className="bg-white p-5 rounded-2xl border border-blue-50 flex justify-between items-center shadow-sm">
-                <div><div className="font-black text-blue-900 text-base italic">{c['Placa']}</div><div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{state.plantas.find((p:any)=>p.PlantaId===c.PlantaId)?.NomedaUnidade}</div></div>
+                <div><div className="font-black text-blue-900 text-base italic">{c['Placa']}</div><div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{state.plantas.find((p:any)=>String(p.PlantaID)===String(c.PlantaID))?.NomedaUnidade}</div></div>
                 <button onClick={() => actions.deleteCaminhao(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl"><Trash2 size={16} /></button>
             </div>
           )}
@@ -346,34 +277,29 @@ const CaminhoesTab = ({ state, searchTerm, actions }: any) => {
 
 const MotoristasTab = ({ state, searchTerm, actions }: any) => {
   const [nome, setNome] = useState('');
-  const [plantaId, setPlantaId] = useState('');
+  const [plantaID, setPlantaID] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
-      try {
-          await actions.addMotorista({ NomedoMotorista: nome, PlantaId: plantaId });
-          setNome(''); setPlantaId('');
-      } catch (err: any) { alert(`Erro: ${err.message}`); }
+      try { await actions.addMotorista({ NomedoMotorista: nome, PlantaID: plantaID }); setNome(''); setPlantaID(''); } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
-
   const items = (state.motoristas || []).filter((m: Motorista) => m['NomedoMotorista']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
       <FormLayout title="Motorista" onSubmit={handleSubmit} loading={loading}>
         <div><label className={labelClass}>Nome</label><input required type="text" className={inputClass} value={nome} onChange={e => setNome(e.target.value)} /></div>
-        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaId']} value={p['PlantaId']}>{p['NomedaUnidade']}</option>)}</select></div>
+        <div><label className={labelClass}>Planta</label><select className={inputClass} required value={plantaID} onChange={e => setPlantaID(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p['PlantaID']} value={p['PlantaID']}>{p['NomedaUnidade']}</option>)}</select></div>
       </FormLayout>
       <div className="lg:col-span-2">
         <ListTable headers={['Motorista', 'Planta']} items={items} 
           renderRow={(m: Motorista) => (
-            <tr key={m.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>p.PlantaId===m.PlantaId)?.NomedaUnidade}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deleteMotorista(m.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
+            <tr key={m.id}><td className="px-6 py-4 font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</td><td className="px-6 py-4 text-sm">{state.plantas.find((p:any)=>String(p.PlantaID)===String(m.PlantaID))?.NomedaUnidade}</td><td className="px-6 py-4 text-right"><button onClick={() => actions.deleteMotorista(m.id)} className="text-blue-200 hover:text-red-500 p-2"><Trash2 size={16} /></button></td></tr>
           )}
           renderCard={(m: Motorista) => (
             <div key={m.id} className="bg-white p-5 rounded-2xl border border-blue-50 flex justify-between items-center shadow-sm">
-                <div><div className="font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</div><div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{state.plantas.find((p:any)=>p.PlantaId===m.PlantaId)?.NomedaUnidade}</div></div>
+                <div><div className="font-bold text-gray-800 text-sm">{m['NomedoMotorista']}</div><div className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{state.plantas.find((p:any)=>String(p.PlantaID)===String(m.PlantaID))?.NomedaUnidade}</div></div>
                 <button onClick={() => actions.deleteMotorista(m.id)} className="p-3 bg-red-50 text-red-500 rounded-xl"><Trash2 size={16} /></button>
             </div>
           )}
@@ -388,21 +314,14 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
   const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
   const [nivel, setNivel] = useState<Role>('Operador');
-  const [plantaId, setPlantaId] = useState('');
+  const [plantaID, setPlantaID] = useState('');
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setLoading(true);
-      try {
-          await actions.addUsuario({ NomeCompleto: nome, LoginUsuario: login, SenhaUsuario: senha, NivelAcesso: nivel, PlantaId: plantaId });
-          setNome(''); setLogin(''); setSenha(''); setPlantaId('');
-      } catch (err: any) { 
-          alert(`Erro ao salvar usuário: ${err.message}`); 
-      }
+      try { await actions.addUsuario({ NomeCompleto: nome, LoginUsuario: login, SenhaUsuario: senha, NivelAcesso: nivel, PlantaID: plantaID }); setNome(''); setLogin(''); setSenha(''); setPlantaID(''); } catch (err: any) { alert(`Erro: ${err.message}`); }
       setLoading(false);
   };
-
   const items = (state.usuarios || []).filter((u: Usuario) => u['NomeCompleto']?.toLowerCase().includes(searchTerm.toLowerCase()));
   return (
     <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -414,15 +333,7 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
         </div>
         <div><label className={labelClass}>Nível</label><select className={inputClass} value={nivel} onChange={e => setNivel(e.target.value as Role)}><option value="Operador">Operador</option><option value="Admin">Admin</option></select></div>
         {nivel === 'Operador' && (
-            <div>
-              <label className={labelClass}>Planta Vinculada</label>
-              <select className={inputClass} required value={plantaId} onChange={e => setPlantaId(e.target.value)}>
-                <option value="">Selecione...</option>
-                {state.plantas.map((p: Planta) => (
-                  <option key={p.PlantaId} value={p.PlantaId}>{p['NomedaUnidade']}</option>
-                ))}
-              </select>
-            </div>
+            <div><label className={labelClass}>Planta Vinculada</label><select className={inputClass} required value={plantaID} onChange={e => setPlantaID(e.target.value)}><option value="">Selecione...</option>{state.plantas.map((p: Planta) => <option key={p.PlantaID} value={p.PlantaID}>{p['NomedaUnidade']}</option>)}</select></div>
         )}
       </FormLayout>
       <div className="lg:col-span-2">
@@ -444,11 +355,6 @@ const UsuariosTab = ({ state, searchTerm, actions }: any) => {
 
 export const Admin: React.FC<AdminProps> = ({ state, actions, activeSubTab, setActiveSubTab, initialImportType }) => {
   const [searchTerm, setSearchTerm] = useState('');
-
-  const openImport = (type: 'CARGAS' | 'CAMINHOES' | 'MOTORISTAS') => {
-      setActiveSubTab('importar');
-  };
-
   return (
     <div className="bg-transparent lg:bg-white lg:p-10 lg:rounded-3xl lg:shadow-sm lg:border lg:border-blue-50 min-h-[600px]">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 lg:mb-10 px-1 lg:px-0">
@@ -457,32 +363,19 @@ export const Admin: React.FC<AdminProps> = ({ state, actions, activeSubTab, setA
             {['usuarios', 'plantas', 'caminhoes', 'motoristas'].map((t: any) => (
                <button key={t} onClick={() => setActiveSubTab(t)} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeSubTab === t ? 'bg-blue-600 lg:bg-white text-white lg:text-blue-700 shadow-sm' : 'text-blue-800/40'}`}>{t}</button>
             ))}
-            <button onClick={() => setActiveSubTab('importar')} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap flex items-center gap-2 ${activeSubTab === 'importar' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-700 font-bold'}`}>
-               <FileSpreadsheet size={14} /> Importar
-            </button>
+            <button onClick={() => setActiveSubTab('importar')} className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap flex items-center gap-2 ${activeSubTab === 'importar' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-700 font-bold'}`}><FileSpreadsheet size={14} /> Importar</button>
          </div>
       </div>
-      
       {activeSubTab !== 'importar' && (
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8 px-1 lg:px-0">
               <div className="relative flex-1 animate-in slide-in-from-top-4 duration-300">
-                 <Search className="absolute left-5 lg:left-4 top-1/2 -translate-y-1/2 text-blue-300" size={18} />
-                 <input type="text" placeholder={`Buscar ${activeSubTab}...`} className="w-full pl-12 pr-6 py-4 border border-blue-50 rounded-2xl bg-white lg:bg-blue-50/20 focus:bg-white outline-none font-bold text-gray-700 transition-all shadow-sm lg:shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                 <Search className="absolute left-5 lg:left-4 top-1/2 -translate-y-1/2 text-blue-300" size={18} /><input type="text" placeholder={`Buscar ${activeSubTab}...`} className="w-full pl-12 pr-6 py-4 border border-blue-50 rounded-2xl bg-white lg:bg-blue-50/20 focus:bg-white outline-none font-bold text-gray-700 transition-all shadow-sm lg:shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
-              
-              {activeSubTab === 'caminhoes' && (
-                  <button onClick={() => openImport('CAMINHOES')} className="bg-blue-50 text-blue-700 px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-blue-100 transition-all shadow-sm border border-blue-100">
-                      <FileSpreadsheet size={16} /> Importar Excel
-                  </button>
-              )}
-              {activeSubTab === 'motoristas' && (
-                  <button onClick={() => openImport('MOTORISTAS')} className="bg-blue-50 text-blue-700 px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-blue-100 transition-all shadow-sm border border-blue-100">
-                      <FileSpreadsheet size={16} /> Importar Excel
-                  </button>
+              {(activeSubTab === 'caminhoes' || activeSubTab === 'motoristas') && (
+                  <button onClick={() => setActiveSubTab('importar')} className="bg-blue-50 text-blue-700 px-6 py-4 rounded-2xl font-black uppercase text-[10px] flex items-center justify-center gap-2 hover:bg-blue-100 transition-all shadow-sm border border-blue-100"><FileSpreadsheet size={16} /> Importar Excel</button>
               )}
           </div>
       )}
-      
       <div className="px-1 lg:px-0">
         {activeSubTab === 'usuarios' && <UsuariosTab state={state} searchTerm={searchTerm} actions={actions} />}
         {activeSubTab === 'plantas' && <PlantasTab state={state} searchTerm={searchTerm} actions={actions} />}

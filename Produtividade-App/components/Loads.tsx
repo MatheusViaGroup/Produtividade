@@ -20,10 +20,9 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
   const [now, setNow] = useState(new Date());
 
   const currentUser = state.currentUser;
-  const userPlantId = currentUser?.PlantaId;
+  const userPlantID = currentUser?.PlantaID;
 
-  // Se for operador, o filtro de planta inicia travado na dele
-  const [selectedPlanta, setSelectedPlanta] = useState<string>(userPlantId || 'all');
+  const [selectedPlanta, setSelectedPlanta] = useState<string>(userPlantID || 'all');
   const [selectedMotorista, setSelectedMotorista] = useState<string>('all');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
@@ -33,32 +32,30 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
     return () => clearInterval(timer);
   }, []);
 
-  const availableCaminhoes = (state.caminhoes || []).filter((c: Caminhao) => !userPlantId || c.PlantaId === userPlantId);
-  const availableMotoristas = (state.motoristas || []).filter((m: Motorista) => !userPlantId || m.PlantaId === userPlantId);
+  const availableCaminhoes = (state.caminhoes || []).filter((c: Caminhao) => !userPlantID || String(c.PlantaID) === String(userPlantID));
+  const availableMotoristas = (state.motoristas || []).filter((m: Motorista) => !userPlantID || String(m.PlantaID) === String(userPlantID));
 
   const visibleCargas = useMemo(() => {
     return (state.cargas || []).filter((c: Carga) => {
       const isStatusMatch = filter === 'ATIVAS' ? c.StatusCarga === 'PENDENTE' : c.StatusCarga === 'CONCLUIDO';
       if (!isStatusMatch) return false;
 
-      // Restrição de hierarquia: Operador só vê a sua planta. Admin vê o que selecionar.
-      const currentViewPlant = userPlantId || selectedPlanta;
-      if (currentViewPlant !== 'all' && c.PlantaId !== currentViewPlant) return false;
+      const currentViewPlant = userPlantID || selectedPlanta;
+      if (currentViewPlant !== 'all' && String(c.PlantaID) !== String(currentViewPlant)) return false;
       
-      if (selectedMotorista !== 'all' && c.MotoristaId !== selectedMotorista) return false;
+      if (selectedMotorista !== 'all' && String(c.MotoristaId) !== String(selectedMotorista)) return false;
 
       if (dateStart || dateEnd) {
         const loadDate = new Date(c.DataInicio);
         if (dateStart && isAfter(startOfDay(new Date(dateStart)), loadDate)) return false;
         if (dateEnd && isAfter(loadDate, endOfDay(new Date(dateEnd)))) return false;
       }
-
       return true;
     }).sort((a: Carga, b: Carga) => {
       if (filter === 'ATIVAS') return new Date(b.DataCriacao).getTime() - new Date(a.DataCriacao).getTime();
       return (new Date(b.ChegadaReal || 0).getTime()) - (new Date(a.ChegadaReal || 0).getTime());
     });
-  }, [state.cargas, filter, userPlantId, selectedPlanta, selectedMotorista, dateStart, dateEnd]);
+  }, [state.cargas, filter, userPlantID, selectedPlanta, selectedMotorista, dateStart, dateEnd]);
 
   const [formData, setFormData] = useState({ caminhaoId: '', motoristaId: '', tipo: 'CHEIA' as LoadType, dataInicio: format(new Date(), "yyyy-MM-dd'T'HH:mm"), kmPrevisto: 0 });
   const [editFormData, setEditFormData] = useState({ caminhaoId: '', motoristaId: '', tipo: 'CHEIA' as LoadType, dataInicio: format(new Date(), "yyyy-MM-dd'T'HH:mm"), voltaPrevista: format(new Date(), "yyyy-MM-dd'T'HH:mm"), kmPrevisto: 0 });
@@ -95,11 +92,11 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
 
   const handleCreateLoad = (e: React.FormEvent) => {
     e.preventDefault();
-    const caminhao = state.caminhoes.find((c: any) => c.CaminhaoId === formData.caminhaoId);
+    const caminhao = state.caminhoes.find((c: any) => String(c.CaminhaoId) === String(formData.caminhaoId));
     if (!caminhao) return;
     const voltaPrevista = calculateExpectedReturn(new Date(formData.dataInicio), formData.kmPrevisto, formData.tipo);
     actions.addCarga({
-      PlantaId: caminhao.PlantaId,
+      PlantaID: caminhao.PlantaID,
       CaminhaoId: formData.caminhaoId,
       MotoristaId: formData.motoristaId,
       TipoCarga: formData.tipo,
@@ -140,51 +137,25 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
             <div className="relative">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
               <select 
-                  disabled={!!userPlantId}
+                  disabled={!!userPlantID}
                   value={selectedPlanta} 
                   onChange={e => setSelectedPlanta(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 appearance-none text-sm transition-all disabled:opacity-50"
               >
-                  {!userPlantId && <option value="all">Todas as Plantas</option>}
-                  {state.plantas.map((p: Planta) => (
-                      <option key={p.PlantaId} value={p.PlantaId}>{p.NomedaUnidade}</option>
-                  ))}
+                  {!userPlantID && <option value="all">Todas as Plantas</option>}
+                  {state.plantas.map((p: Planta) => <option key={p.PlantaID} value={p.PlantaID}>{p.NomedaUnidade}</option>)}
               </select>
             </div>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-blue-800/40 uppercase tracking-widest ml-1">Motorista</label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
-              <select 
-                  value={selectedMotorista} 
-                  onChange={e => setSelectedMotorista(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 appearance-none text-sm transition-all"
-              >
-                  <option value="all">Todos os Motoristas</option>
-                  {availableMotoristas.map((m: Motorista) => (
-                      <option key={m.MotoristaId} value={m.MotoristaId}>{m.NomedoMotorista}</option>
-                  ))}
-              </select>
+              <select value={selectedMotorista} onChange={e => setSelectedMotorista(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 appearance-none text-sm transition-all"><option value="all">Todos os Motoristas</option>{availableMotoristas.map((m: Motorista) => <option key={m.MotoristaId} value={m.MotoristaId}>{m.NomedoMotorista}</option>)}</select>
             </div>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-blue-800/40 uppercase tracking-widest ml-1">Início</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
-              <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-blue-800/40 uppercase tracking-widest ml-1">Até</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} />
-              <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm" />
-            </div>
-          </div>
+          <div className="space-y-1.5"><label className="text-[10px] font-black text-blue-800/40 uppercase tracking-widest ml-1">Início</label><div className="relative"><Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} /><input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm" /></div></div>
+          <div className="space-y-1.5"><label className="text-[10px] font-black text-blue-800/40 uppercase tracking-widest ml-1">Até</label><div className="relative"><Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300" size={16} /><input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-blue-50/30 border border-blue-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 text-sm" /></div></div>
         </div>
       </div>
 
@@ -226,15 +197,15 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                   <div className="flex items-center gap-4">
                       <div className="bg-slate-100 p-3 rounded-2xl text-slate-600"><Truck size={24} /></div>
                       <div className="flex-1 min-w-0">
-                          <p className="text-xl font-black text-gray-900 italic leading-none truncate uppercase tracking-tighter">{state.caminhoes.find((c: any) => c.CaminhaoId === carga.CaminhaoId)?.Placa || '---'}</p>
+                          <p className="text-xl font-black text-gray-900 italic leading-none truncate uppercase tracking-tighter">{state.caminhoes.find((c: any) => String(c.CaminhaoId) === String(carga.CaminhaoId))?.Placa || '---'}</p>
                           <div className="flex items-center gap-1 mt-1 text-blue-600 opacity-60">
-                              <MapPin size={10} /><p className="text-[9px] font-black uppercase truncate">{state.plantas.find((p: any) => p.PlantaId === carga.PlantaId)?.NomedaUnidade}</p>
+                              <MapPin size={10} /><p className="text-[9px] font-black uppercase truncate">{state.plantas.find((p: any) => String(p.PlantaID) === String(carga.PlantaID))?.NomedaUnidade}</p>
                           </div>
                       </div>
                   </div>
                   <div className="flex items-center gap-4 bg-slate-50/50 p-4 rounded-2xl">
                       <div className="bg-white p-2.5 rounded-xl shadow-sm text-gray-400"><User size={18} /></div>
-                      <p className="text-xs font-bold text-gray-700 truncate">{state.motoristas.find((m: any) => m.MotoristaId === carga.MotoristaId)?.NomedoMotorista || 'Motorista'}</p>
+                      <p className="text-xs font-bold text-gray-700 truncate">{state.motoristas.find((m: any) => String(m.MotoristaId) === String(carga.MotoristaId))?.NomedoMotorista || 'Motorista'}</p>
                   </div>
                </div>
                <div className="pt-2 grid grid-cols-2 gap-4">
@@ -250,9 +221,7 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                   </div>
                </div>
                {!isHistory && (
-                  <button onClick={() => setIsFinishing(carga.CargaId)} className="w-full bg-blue-900 text-white flex items-center justify-center gap-2 text-[10px] font-black uppercase border border-blue-900 py-4 rounded-2xl hover:bg-black active:scale-95 transition-all shadow-lg shadow-blue-100">
-                    Encerrar Rota <ArrowRight size={14} />
-                  </button>
+                  <button onClick={() => setIsFinishing(carga.CargaId)} className="w-full bg-blue-900 text-white flex items-center justify-center gap-2 text-[10px] font-black uppercase border border-blue-900 py-4 rounded-2xl hover:bg-black active:scale-95 transition-all shadow-lg shadow-blue-100">Encerrar Rota <ArrowRight size={14} /></button>
                )}
             </div>
           );
