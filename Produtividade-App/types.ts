@@ -28,7 +28,7 @@ export interface Usuario {
   'LoginUsuario': string;
   'SenhaUsuario': string;
   'NivelAcesso': Role;
-  'PlantaID'?: string;
+  'PlantaId'?: string;
   'id': string;
 }
 
@@ -44,7 +44,7 @@ export interface Carga {
   'VoltaPrevista': Date;
   'StatusCarga': LoadStatus;
   
-  // Finalização - Nomes ajustados para bater com SharePoint
+  // Finalização
   'KmReal'?: number;
   'ChegadaReal'?: Date;
   'Diff1_Gap'?: number;
@@ -53,7 +53,6 @@ export interface Carga {
   'Diff2_Justificativa'?: string;
 }
 
-// Fix: Added missing AppState interface definition required by store.ts
 export interface AppState {
   plantas: Planta[];
   caminhoes: Caminhao[];

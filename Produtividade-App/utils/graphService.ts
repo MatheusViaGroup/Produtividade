@@ -50,23 +50,22 @@ export class GraphService {
     }
 
     async resolveSites() {
-        console.log("Iniciando resolução de sites...");
+        console.log("Iniciando resolução de sites SharePoint...");
         for (const [key, config] of Object.entries(SITE_PATHS)) {
             try {
                 const site = await this.client.api(`/sites/${config.host}:${config.path}`).get();
                 this.siteIds[key] = site.id;
-                console.log(`Site ${key} ok: ${site.id}`);
+                console.log(`✅ Site ${key} resolvido: ${site.id}`);
             } catch (error: any) {
-                console.warn(`Erro ao resolver site ${key}:`, error.message);
-                if (key === 'POWERAPPS') throw error;
+                console.error(`❌ Erro ao resolver site ${key} (${config.path}):`, error.message);
+                if (key === 'POWERAPPS') throw new Error(`O site principal Powerapps não pôde ser acessado. Verifique as permissões.`);
             }
         }
     }
 
     static async hasActiveAccount() {
         const msalApp = await getMsal();
-        const accounts = msalApp.getAllAccounts();
-        return accounts.length > 0;
+        return msalApp.getAllAccounts().length > 0;
     }
 
     static async getAccessToken() {
@@ -83,7 +82,7 @@ export class GraphService {
             const tokenResponse = await msalApp.acquireTokenSilent({ scopes, account: accounts[0] });
             return tokenResponse.accessToken;
         } catch (error) {
-            console.log("Silent token fail, using popup...");
+            console.warn("Silent token falhou, tentando popup...");
             const loginResponse = await msalApp.acquireTokenPopup({ scopes, account: accounts[0] });
             return loginResponse.accessToken;
         }
@@ -92,7 +91,7 @@ export class GraphService {
     async getListItems(listConfig: { id: string, siteRef: string }) {
         const siteId = this.siteIds[listConfig.siteRef];
         if (!siteId) {
-            console.error(`Site ID ausente para ${listConfig.siteRef}`);
+            console.error(`Impossível buscar lista ${listConfig.id}: Site ${listConfig.siteRef} não resolvido.`);
             return [];
         }
 
@@ -107,13 +106,14 @@ export class GraphService {
                 ...item.fields
             }));
         } catch (error: any) {
-            console.error(`Erro ao ler lista ${listConfig.id}:`, error.message);
+            console.error(`Erro ao ler itens da lista ${listConfig.id}:`, error.message);
             return [];
         }
     }
 
     async createItem(listConfig: { id: string, siteRef: string }, fields: any) {
         const siteId = this.siteIds[listConfig.siteRef];
+        if (!siteId) throw new Error("Site não resolvido para criação de item.");
         return await this.client
             .api(`/sites/${siteId}/lists/${listConfig.id}/items`)
             .post({ fields });
@@ -121,6 +121,7 @@ export class GraphService {
 
     async updateItem(listConfig: { id: string, siteRef: string }, itemId: string, fields: any) {
         const siteId = this.siteIds[listConfig.siteRef];
+        if (!siteId) throw new Error("Site não resolvido para atualização.");
         return await this.client
             .api(`/sites/${siteId}/lists/${listConfig.id}/items/${itemId}/fields`)
             .patch(fields);
@@ -128,6 +129,7 @@ export class GraphService {
 
     async deleteItem(listConfig: { id: string, siteRef: string }, itemId: string) {
         const siteId = this.siteIds[listConfig.siteRef];
+        if (!siteId) throw new Error("Site não resolvido para exclusão.");
         return await this.client
             .api(`/sites/${siteId}/lists/${listConfig.id}/items/${itemId}`)
             .delete();
