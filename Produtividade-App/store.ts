@@ -48,7 +48,6 @@ export const useAppState = () => {
       ]);
 
       setState(prev => {
-          // Fix: Normalize PlantaId instead of PlantaID to match types.ts
           const normalizedPlantas = p.map((item: any) => ({
               ...item,
               id: normalizeId(item.id),
@@ -93,10 +92,10 @@ export const useAppState = () => {
                   ChegadaReal: item.ChegadaReal ? new Date(item.ChegadaReal) : undefined,
                   KmReal: item.KmReal ? Number(item.KmReal) : undefined,
                   KmPrevisto: item.KmPrevisto ? Number(item.KmPrevisto) : 0,
-                  // Mapeamento resiliente para o campo de justificativa corrigido
+                  // Mapeamento corrigido conforme imagem do usuário
                   Diff1_Justificativa: item.Diff1_Justificativa || item.Diff1_Jusitificativa,
-                  Diff2_Atraso: item['Diff2_x002e_Atraso'] || item['Diff2.Atraso'] || item.Diff2_Atraso,
-                  Diff2_Justificativa: item['Diff2_x002e_Justificativa'] || item['Diff2.Justificativa'] || item.Diff2_Justificativa
+                  Diff2_Atraso: item.Diff2_Atraso || item['Diff2_x002e_Atraso'] || item['Diff2.Atraso'],
+                  Diff2_Justificativa: item.Diff2_Justificativa || item['Diff2_x002e_Justificativa'] || item['Diff2.Justificativa']
               };
           });
 
@@ -179,11 +178,10 @@ export const useAppState = () => {
             KmReal: updated.KmReal,
             ChegadaReal: updated.ChegadaReal?.toISOString(),
             Diff1_Gap: updated.Diff1_Gap,
-            // Correção do nome do campo conforme solicitado pelo usuário para evitar Erro 400
+            // Nomes exatos conforme imagem do usuário (com underscore)
             Diff1_Justificativa: updated.Diff1_Justificativa,
-            // SharePoint converte ponto em _x002e_
-            Diff2_x002e_Atraso: updated.Diff2_Atraso,
-            Diff2_x002e_Justificativa: updated.Diff2_Justificativa,
+            Diff2_Atraso: updated.Diff2_Atraso,
+            Diff2_Justificativa: updated.Diff2_Justificativa,
             PlantaId: normalizeId(updated.PlantaId)
         };
         await graph.updateItem(LISTS.CARGAS.id, updated.CargaId, fields);
