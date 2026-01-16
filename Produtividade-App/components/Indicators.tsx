@@ -21,6 +21,13 @@ export const Indicators: React.FC<IndicatorsProps> = ({ state }) => {
   const plantas = state.plantas || [];
   const motoristas = state.motoristas || [];
 
+  const formatMinutesToTime = (totalMinutes: number) => {
+    if (!totalMinutes) return "0h 00m";
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.round(totalMinutes % 60);
+    return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  };
+
   const filteredCargas = useMemo(() => {
     return cargas.filter((c: Carga) => {
       const isFinalizada = c['StatusCarga'] === 'CONCLUIDO';
@@ -123,9 +130,9 @@ export const Indicators: React.FC<IndicatorsProps> = ({ state }) => {
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card title="Tempo Médio por Motorista" value={metrics.avgRouteTime} unit="min" icon={Clock} color="bg-blue-50 text-blue-600" />
+        <Card title="Tempo Médio por Motorista" value={formatMinutesToTime(metrics.avgRouteTime)} icon={Clock} color="bg-blue-50 text-blue-600" />
         <Card title="Km Médio por Motorista" value={metrics.avgKm} unit="km" icon={Gauge} color="bg-indigo-50 text-indigo-600" />
-        <Card title="Descarga Média por Motorista" value={metrics.avgUnloadTime} unit="min" icon={TrendingUp} color="bg-cyan-50 text-cyan-600" />
+        <Card title="Descarga Média por Motorista" value={formatMinutesToTime(metrics.avgUnloadTime)} icon={TrendingUp} color="bg-cyan-50 text-cyan-600" />
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
