@@ -212,18 +212,74 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                       <p className="text-xs font-bold text-gray-700 truncate">{state.motoristas.find((m: any) => String(m.MotoristaId) === String(carga.MotoristaId))?.NomedoMotorista || 'Motorista'}</p>
                   </div>
                </div>
-               <div className="pt-2 grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50/30 p-4 rounded-2xl">
-                      <div className="flex items-center gap-1.5 mb-1 opacity-30"><Calendar size={10} /><span className="text-[8px] font-black uppercase">Saída</span></div>
-                      <p className="text-sm font-black text-gray-800">{format(new Date(carga.DataInicio), 'dd/MM HH:mm')}</p>
+
+               {/* Seção de Tempos e Horários */}
+               {isHistory && carga.ChegadaReal && carga.KmReal ? (() => {
+                  const totalMin = differenceInMinutes(new Date(carga.ChegadaReal), new Date(carga.DataInicio));
+                  const roadMin = Math.round((Number(carga.KmReal) / 38) * 60);
+                  const unloadMin = Math.max(0, totalMin - roadMin);
+
+                  const formatTime = (min: number) => {
+                    const h = Math.floor(min / 60);
+                    const m = Math.round(min % 60);
+                    return `${h}h ${String(m).padStart(2, '0')}m`;
+                  };
+
+                  return (
+                    <div className="pt-2 space-y-3 bg-slate-50 p-4 rounded-2xl border border-blue-50/50">
+                        <div className="grid grid-cols-2 gap-4 border-b border-blue-100 pb-3">
+                            <div>
+                                <span className="flex items-center text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                    <Calendar className="w-2.5 h-2.5 mr-1" /> Saída
+                                </span>
+                                <p className="text-sm font-black text-gray-700 italic">
+                                    {format(new Date(carga.DataInicio), 'dd/MM HH:mm')}
+                                </p>
+                            </div>
+                            <div>
+                                <span className="flex items-center text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                                    <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> Chegada
+                                </span>
+                                <p className="text-sm font-black text-gray-700 italic">
+                                    {format(new Date(carga.ChegadaReal), 'dd/MM HH:mm')}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <span className="flex items-center text-[8px] font-black text-blue-500/60 uppercase tracking-widest mb-1">
+                                    <Truck className="w-2.5 h-2.5 mr-1" /> Rodando
+                                </span>
+                                <p className="text-sm font-black text-blue-900 italic">
+                                    {formatTime(roadMin)}
+                                </p>
+                            </div>
+                            <div>
+                                <span className="flex items-center text-[8px] font-black text-orange-500/60 uppercase tracking-widest mb-1">
+                                    <Clock className="w-2.5 h-2.5 mr-1" /> Descarga
+                                </span>
+                                <p className="text-sm font-black text-orange-900 italic">
+                                    {formatTime(unloadMin)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                  );
+                })() : (
+                  <div className="pt-2 grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50/30 p-4 rounded-2xl">
+                        <div className="flex items-center gap-1.5 mb-1 opacity-30"><Calendar size={10} /><span className="text-[8px] font-black uppercase">Saída</span></div>
+                        <p className="text-sm font-black text-gray-800">{format(new Date(carga.DataInicio), 'dd/MM HH:mm')}</p>
+                    </div>
+                    <div className={`p-4 rounded-2xl ${isHistory ? 'bg-slate-100' : 'bg-blue-600/5'}`}>
+                        <div className={`flex items-center gap-1.5 mb-1 ${isHistory ? 'text-gray-400' : 'text-blue-600'} opacity-40`}><Gauge size={10} /><span className="text-[8px] font-black uppercase italic">{isHistory ? 'Chegada Real' : 'Volta Prev.'}</span></div>
+                        <p className={`text-sm font-black ${isHistory ? 'text-gray-600' : isLate ? 'text-orange-600' : 'text-blue-700'} italic`}>
+                            {isHistory && carga.ChegadaReal ? format(new Date(carga.ChegadaReal), 'dd/MM HH:mm') : format(new Date(carga.VoltaPrevista), 'dd/MM HH:mm')}
+                        </p>
+                    </div>
                   </div>
-                  <div className={`p-4 rounded-2xl ${isHistory ? 'bg-slate-100' : 'bg-blue-600/5'}`}>
-                      <div className={`flex items-center gap-1.5 mb-1 ${isHistory ? 'text-gray-400' : 'text-blue-600'} opacity-40`}><Gauge size={10} /><span className="text-[8px] font-black uppercase italic">{isHistory ? 'Chegada Real' : 'Volta Prev.'}</span></div>
-                      <p className={`text-sm font-black ${isHistory ? 'text-gray-600' : isLate ? 'text-orange-600' : 'text-blue-700'} italic`}>
-                          {isHistory && carga.ChegadaReal ? format(new Date(carga.ChegadaReal), 'dd/MM HH:mm') : format(new Date(carga.VoltaPrevista), 'dd/MM HH:mm')}
-                      </p>
-                  </div>
-               </div>
+                )}
+
                {!isHistory && (
                   <button onClick={() => setIsFinishing(carga.CargaId)} className="w-full bg-blue-900 text-white flex items-center justify-center gap-2 text-[10px] font-black uppercase border border-blue-900 py-4 rounded-2xl hover:bg-black active:scale-95 transition-all shadow-lg shadow-blue-100">Encerrar Rota <ArrowRight size={14} /></button>
                )}

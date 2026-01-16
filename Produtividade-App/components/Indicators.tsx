@@ -44,27 +44,43 @@ export const Indicators: React.FC<IndicatorsProps> = ({ state }) => {
 
   const metrics = useMemo(() => {
     if (filteredCargas.length === 0) return { avgRouteTime: 0, avgKm: 0, avgUnloadTime: 0, totalKm: 0, kmPerDay: 0 };
-    
-    // Cálculo de motoristas únicos no período filtrado
-    const uniqueDriversCount = new Set(filteredCargas.map(c => c.MotoristaId)).size || 1;
-    
-    const totalMinutes = filteredCargas.reduce((acc, c) => c.ChegadaReal ? acc + differenceInMinutes(new Date(c.ChegadaReal), new Date(c.DataInicio)) : acc, 0);
-    const totalKm = filteredCargas.reduce((acc, c) => acc + (c.KmReal || 0), 0);
-    const totalUnloadMinutes = filteredCargas.reduce((acc, c) => {
-        if (!c.ChegadaReal || !c.KmReal) return acc;
-        const actualMinutes = differenceInMinutes(new Date(c.ChegadaReal), new Date(c.DataInicio));
+
+    // Variáveis acumuladoras locais
+    let accTotalKm = 0;
+    let accTotalUnloadMinutes = 0;
+    let accTotalRouteMinutes = 0; // "Nova Jornada" (Líquida)
+
+    filteredCargas.forEach(c => {
+      // Acumula KM
+      accTotalKm += (c.KmReal || 0);
+
+      if (c.ChegadaReal && c.KmReal) {
+        // 1. Tempo Bruto (Relógio)
+        const grossMinutes = differenceInMinutes(new Date(c.ChegadaReal), new Date(c.DataInicio));
+        
+        // 2. Tempo de Estrada Estimado (38km/h)
         const estimatedTravelMinutes = (c.KmReal / 38) * 60;
-        return acc + Math.max(0, actualMinutes - estimatedTravelMinutes);
-    }, 0);
+        
+        // 3. Tempo de Descarga (Bruto - Estrada)
+        const unloadMinutes = Math.max(0, grossMinutes - estimatedTravelMinutes);
+        
+        // Acumula Descarga
+        accTotalUnloadMinutes += unloadMinutes;
+
+        // 4. Nova Jornada = Bruto - Descarga
+        accTotalRouteMinutes += Math.max(0, grossMinutes - unloadMinutes);
+      }
+    });
+
     const uniqueDays = new Set(filteredCargas.map(c => format(new Date(c.DataInicio), 'yyyy-MM-dd'))).size;
-    
+    const uniqueDriversCount = new Set(filteredCargas.map(c => c.MotoristaId)).size || 1;
+
     return {
-      // Médias agora calculadas por Motorista Único
-      avgRouteTime: Math.round(totalMinutes / uniqueDriversCount),
-      avgKm: Math.round(totalKm / uniqueDriversCount),
-      avgUnloadTime: Math.round(totalUnloadMinutes / uniqueDriversCount),
-      totalKm: totalKm,
-      kmPerDay: uniqueDays > 0 ? Math.round(totalKm / uniqueDays) : 0
+      avgRouteTime: Math.round(accTotalRouteMinutes / uniqueDriversCount),
+      avgKm: Math.round(accTotalKm / uniqueDriversCount),
+      avgUnloadTime: Math.round(accTotalUnloadMinutes / uniqueDriversCount),
+      totalKm: accTotalKm,
+      kmPerDay: uniqueDays > 0 ? Math.round(accTotalKm / uniqueDays) : 0
     };
   }, [filteredCargas]);
 
