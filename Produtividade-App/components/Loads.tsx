@@ -214,9 +214,10 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                </div>
 
                {/* Seção de Tempos e Horários */}
-               {isHistory && carga.ChegadaReal && carga.KmReal ? (() => {
+               {isHistory && carga.ChegadaReal ? (() => {
                   const totalMin = differenceInMinutes(new Date(carga.ChegadaReal), new Date(carga.DataInicio));
-                  const roadMin = Math.round((Number(carga.KmReal) / 38) * 60);
+                  const km = Number(carga.KmReal || 0);
+                  const roadMin = km > 0 ? Math.round((km / 38) * 60) : 0;
                   const unloadMin = Math.max(0, totalMin - roadMin);
 
                   const formatTime = (min: number) => {
@@ -271,10 +272,10 @@ export const Loads: React.FC<LoadsProps> = ({ state, actions, isAdmin, onImport 
                         <div className="flex items-center gap-1.5 mb-1 opacity-30"><Calendar size={10} /><span className="text-[8px] font-black uppercase">Saída</span></div>
                         <p className="text-sm font-black text-gray-800">{format(new Date(carga.DataInicio), 'dd/MM HH:mm')}</p>
                     </div>
-                    <div className={`p-4 rounded-2xl ${isHistory ? 'bg-slate-100' : 'bg-blue-600/5'}`}>
-                        <div className={`flex items-center gap-1.5 mb-1 ${isHistory ? 'text-gray-400' : 'text-blue-600'} opacity-40`}><Gauge size={10} /><span className="text-[8px] font-black uppercase italic">{isHistory ? 'Chegada Real' : 'Volta Prev.'}</span></div>
-                        <p className={`text-sm font-black ${isHistory ? 'text-gray-600' : isLate ? 'text-orange-600' : 'text-blue-700'} italic`}>
-                            {isHistory && carga.ChegadaReal ? format(new Date(carga.ChegadaReal), 'dd/MM HH:mm') : format(new Date(carga.VoltaPrevista), 'dd/MM HH:mm')}
+                    <div className="p-4 rounded-2xl bg-blue-600/5">
+                        <div className="flex items-center gap-1.5 mb-1 text-blue-600 opacity-40"><Gauge size={10} /><span className="text-[8px] font-black uppercase italic">Volta Prev.</span></div>
+                        <p className={`text-sm font-black ${isLate ? 'text-orange-600' : 'text-blue-700'} italic`}>
+                            {format(new Date(carga.VoltaPrevista), 'dd/MM HH:mm')}
                         </p>
                     </div>
                   </div>
